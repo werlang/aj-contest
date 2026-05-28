@@ -1,0 +1,154 @@
+{
+  "name": "autojudge-contest",
+  "displayName": "AutoJudge Contest",
+  "description": "Browse contest problems, track team submissions, and submit solutions to AutoJudge contests directly from Visual Studio Code.",
+  "version": "0.1.0",
+  "publisher": "autojudge",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "autojudge",
+    "contest",
+    "judge",
+    "competitive programming",
+    "education",
+    "testing"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/werlang/autojudge-contest"
+  },
+  "scripts": {
+    "build": "vsce package",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "homepage": "https://autojudge.io",
+  "icon": "media/icon.png",
+  "main": "./src/extension.js",
+  "type": "module",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "autojudgeContest",
+          "title": "AutoJudge Contest",
+          "icon": "$(robot)"
+        }
+      ]
+    },
+    "views": {
+      "autojudgeContest": [
+        {
+          "id": "autojudgeContest.explorer",
+          "name": "Contest Explorer",
+          "icon": "$(robot)"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "autojudgeContest.loginTeam",
+        "title": "AutoJudge Contest: Login Team",
+        "icon": "$(account)"
+      },
+      {
+        "command": "autojudgeContest.logoutTeam",
+        "title": "AutoJudge Contest: Logout Team",
+        "icon": "$(sign-out)"
+      },
+      {
+        "command": "autojudgeContest.refreshTree",
+        "title": "AutoJudge Contest: Refresh Contest Tree",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "autojudgeContest.openProblem",
+        "title": "AutoJudge Contest: Open Problem",
+        "icon": "$(book)"
+      },
+      {
+        "command": "autojudgeContest.submitActiveFile",
+        "title": "AutoJudge Contest: Submit Active File",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "autojudgeContest.exportPublicCases",
+        "title": "AutoJudge Contest: Export Public Cases",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "autojudgeContest.openSubmission",
+        "title": "AutoJudge Contest: Open Submission Result",
+        "icon": "$(history)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "autojudgeContest.refreshTree",
+          "when": "view == autojudgeContest.explorer",
+          "group": "navigation@100"
+        },
+        {
+          "command": "autojudgeContest.loginTeam",
+          "when": "view == autojudgeContest.explorer && autojudgeContest.state == loggedOut",
+          "group": "navigation@110"
+        },
+        {
+          "command": "autojudgeContest.logoutTeam",
+          "when": "view == autojudgeContest.explorer && autojudgeContest.state == loggedIn",
+          "group": "navigation@100"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "autojudgeContest.openProblem",
+          "when": "view == autojudgeContest.explorer && viewItem == autojudgeContest.problem",
+          "group": "inline@100"
+        },
+        {
+          "command": "autojudgeContest.submitActiveFile",
+          "when": "view == autojudgeContest.explorer && viewItem == autojudgeContest.problem",
+          "group": "inline@110"
+        },
+        {
+          "command": "autojudgeContest.exportPublicCases",
+          "when": "view == autojudgeContest.explorer && viewItem == autojudgeContest.problem && autojudgeContest.baseExtensionInstalled",
+          "group": "inline@120"
+        },
+        {
+          "command": "autojudgeContest.openSubmission",
+          "when": "view == autojudgeContest.explorer && viewItem == autojudgeContest.submission",
+          "group": "inline@100"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "AutoJudge Contest",
+      "properties": {
+        "autojudgeContest.baseUrl": {
+          "type": "string",
+          "default": "https://api.autojudge.io",
+          "description": "Full AutoJudge API base URL used for contest team login, problem browsing, and submission polling. Defaults to https://api.autojudge.io."
+        },
+        "autojudgeContest.pollIntervalMs": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 1000,
+          "description": "Polling interval, in milliseconds, used while waiting for submission verdict updates."
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.9.1",
+    "vitest": "^4.1.7"
+  }
+}
