@@ -1,24 +1,25 @@
 import * as vscode from 'vscode';
-import { ContestSubmissionWorkspace } from './contest-submission-workspace.js';
-import { normalizeBaseUrl } from './contest-api.js';
-import { createContestController } from './contest-controller.js';
-import * as contestSession from './contest-session.js';
-import { COMMANDS } from './constants.js';
+import { createContestController } from '../controllers/contest-controller.js';
+import { COMMANDS } from '../constants.js';
+import * as contestSession from '../services/contest-session.js';
+import { ContestSubmissionWorkspace } from '../workspace/contest-submission-workspace.js';
+import config from '../utils/config.js';
 
 /**
  * Register contest commands and keep the multi-step contest behavior inside the
  * controller rather than in VS Code command glue.
  * @param {object} options
  * @param {import('vscode').ExtensionContext} options.context
- * @param {import('./submissions-tree-provider.js').SubmissionsViewProvider} options.submissionsViewProvider
- * @param {import('./contest-tree-provider.js').ContestTreeProvider} options.treeProvider
+ * @param {import('../providers/teams-tree-provider.js').TeamsStandingsProvider} options.teamsStandingsProvider
+ * @param {import('../providers/contest-tree-provider.js').ContestTreeProvider} options.treeProvider
  * @param {import('vscode').OutputChannel} options.outputChannel
  * @returns {import('vscode').Disposable[]}
  */
-export function registerContestCommands({ context, submissionsViewProvider, treeProvider, outputChannel }) {
+export function registerContestCommands({ context, teamsStandingsProvider, treeProvider, outputChannel }) {
     const submissionWorkspace = new ContestSubmissionWorkspace();
     const controller = createContestController({
         context,
+        executeCommand: (command, ...args) => vscode.commands.executeCommand(command, ...args),
         openTextDocument: (options) => vscode.workspace.openTextDocument(options),
         outputChannel,
         promptTeamCredentials: async () => {
@@ -47,20 +48,33 @@ export function registerContestCommands({ context, submissionsViewProvider, tree
 
             return { password, teamId };
         },
-        resolveBaseUrl: () => normalizeBaseUrl(
-            vscode.workspace.getConfiguration('autojudgeContest').get('baseUrl', 'https://api.autojudge.io')
-        ),
+        resolveBaseUrl: () => config.BASE_URL,
+        resolvePollIntervalMs: () => {
+            const configuredIntervalMs = config.POLL_INTERVAL_MS;
+
+            if (!Number.isFinite(configuredIntervalMs)) {
+                return 5000;
+            }
+
+            return Math.max(Math.trunc(configuredIntervalMs), 1000);
+        },
         sessionApi: contestSession,
         setContext: (key, value) => vscode.commands.executeCommand('setContext', key, value),
         showInformationMessage: (message) => vscode.window.showInformationMessage(message),
         showTextDocument: (document, options) => vscode.window.showTextDocument(document, options),
         showErrorMessage: (message) => vscode.window.showErrorMessage(message),
+        withProgressNotification: (title, task) => vscode.window.withProgress({
+            cancellable: false,
+            location: vscode.ProgressLocation.Notification,
+            title,
+        }, async () => await task()),
         submissionWorkspace,
-        submissionsViewProvider,
+        teamsStandingsProvider,
         treeProvider,
     });
 
     return [
+        controller,
         vscode.commands.registerCommand(COMMANDS.LOGIN_TEAM, () => controller.loginTeam()),
         vscode.commands.registerCommand(COMMANDS.LOGOUT_TEAM, () => controller.logoutTeam()),
         vscode.commands.registerCommand(COMMANDS.REFRESH_TREE, () => controller.refreshTree()),
@@ -68,7 +82,6 @@ export function registerContestCommands({ context, submissionsViewProvider, tree
         vscode.commands.registerCommand(COMMANDS.SUBMIT_ACTIVE_FILE, (item) => controller.submitActiveFile(item?.problem ?? item)),
         vscode.commands.registerCommand(COMMANDS.EXPORT_PUBLIC_CASES, (item) => controller.exportPublicCases(item?.problem ?? item)),
         vscode.commands.registerCommand(COMMANDS.OPEN_SUBMISSION, (item) => controller.openSubmission(item?.submission ?? item)),
-        vscode.commands.registerCommand(COMMANDS.CREATE_TEST_CASES, (item) => controller.createTestCases(item?.problem ?? item)),
-        vscode.commands.registerCommand(COMMANDS.SELECT_SUBMISSION_PROBLEM, (item) => controller.selectSubmissionProblem(item?.problem ?? item)),
+        vscode.commands.registerCommand(COMMANDS.OPEN_TEAM_STANDING, (item) => controller.openTeamStanding(item?.team ?? item)),
     ];
 }

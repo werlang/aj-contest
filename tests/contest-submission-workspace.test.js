@@ -55,7 +55,7 @@ vi.mock('vscode', () => ({
     },
 }), { virtual: true });
 
-import { ContestSubmissionWorkspace } from '../src/contest-submission-workspace.js';
+import { ContestSubmissionWorkspace } from '../src/workspace/contest-submission-workspace.js';
 
 function createActiveEditor(filePath) {
     const normalizedPath = path.normalize(filePath);
@@ -122,6 +122,37 @@ describe('contest submission workspace', () => {
                 {
                     inputUri: expect.objectContaining({ fsPath: path.join(destinationPath, 'prob-a-public-02.in') }),
                     outputUri: expect.objectContaining({ fsPath: path.join(destinationPath, 'prob-a-public-02.out') }),
+                },
+            ],
+        });
+    });
+
+    it('exports public cases beside the active source file even when a testcase path is configured', async () => {
+        vscodeState.setTestcasePath('../cases');
+
+        const workspace = new ContestSubmissionWorkspace();
+
+        const result = await workspace.exportPublicCases(
+            { hash: 'Prob A', id: 1 },
+            [
+                { input: '1 2\n', output: '3\n' },
+            ],
+        );
+
+        const destinationPath = path.normalize('/workspace/src');
+        expect(vscodeState.createDirectory).toHaveBeenCalledWith(expect.objectContaining({
+            fsPath: destinationPath,
+        }));
+        expect(vscodeState.writeFile.mock.calls.map(([uri]) => uri.fsPath)).toEqual([
+            path.join(destinationPath, 'prob-a-public-01.in'),
+            path.join(destinationPath, 'prob-a-public-01.out'),
+        ]);
+        expect(result).toEqual({
+            destinationUri: expect.objectContaining({ fsPath: destinationPath }),
+            writtenPairs: [
+                {
+                    inputUri: expect.objectContaining({ fsPath: path.join(destinationPath, 'prob-a-public-01.in') }),
+                    outputUri: expect.objectContaining({ fsPath: path.join(destinationPath, 'prob-a-public-01.out') }),
                 },
             ],
         });

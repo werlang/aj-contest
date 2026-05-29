@@ -1,0 +1,617 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { CONTEXT_KEYS } from '../constants.js';
+import {
+    buildProblemPreview,
+    formatProblemScore,
+    formatSubmissionStatus,
+    renderSubmissionDetails,
+} from '../presentation/contest-presentation.js';
+import { isPendingSubmission } from '../utils/submission-status.js';
+import { extractSolvedProblemNames, normalizeStandingScore } from '../utils/standings.js';
+import { extractPublicCases } from '../workspace/contest-public-cases.js';
+import config from '../utils/config.js';
+
+const SUBMISSION_POLL_TIMEOUT_MS = 2 * 60 * 1000;
+const TEAM_PANEL_REFRESH_RATE = 15;
+const TEAM_PANEL_REFRESH_INTERVAL_MS = TEAM_PANEL_REFRESH_RATE * 1000;
+
+/**
+ * Create the orchestrator that bridges VS Code command handlers to the contest
+ * auth/session services and the sidebar tree state.
+ * @param {object} options
+ * @param {object} options.context
+ * @param {(command: string, ...args: unknown[]) => Promise<void> | void} [options.executeCommand]
+ * @param {(uriOrOptions: string | { content: string, language: string }) => Promise<unknown>} options.openTextDocument
+ * @param {{ appendLine: (message: string) => void }} options.outputChannel
+ * @param {() => Promise<{ teamId: string, password: string } | null>} options.promptTeamCredentials
+ * @param {() => number} [options.resolvePollIntervalMs]
+ * @param {() => string} options.resolveBaseUrl
+ * @param {{ clearStoredSession: Function, loginAndLoadContest: Function, pollSubmissionResult?: Function, refreshContestDetails?: Function, restoreContestSession: Function, submitSolution: Function }} options.sessionApi
+ * @param {(key: string, value: string | boolean) => Promise<void> | void} options.setContext
+ * @param {(message: string) => Promise<void> | void} options.showInformationMessage
+ * @param {(document: unknown, options?: object) => Promise<void> | void} options.showTextDocument
+ * @param {(message: string) => Promise<void> | void} options.showErrorMessage
+ * @param {<T>(title: string, task: () => Promise<T>) => Promise<T>} [options.withProgressNotification]
+ * @param {{ createTestCases: Function, exportPublicCases: Function, readActiveSourceFile: Function }} options.submissionWorkspace
+ * @param {{ setSnapshot: (snapshot: object | null) => void }} options.teamsStandingsProvider
+ * @param {{ setSnapshot: (snapshot: object | null) => void }} options.treeProvider
+ * @returns {{ createTestCases: (problem?: object | undefined | null) => Promise<object | null>, dispose: () => void, exportPublicCases: (problem?: object | undefined | null) => Promise<object | null>, loginTeam: () => Promise<object | null>, logoutTeam: () => Promise<null>, openProblem: (problem: object | undefined | null) => Promise<unknown>, openSubmission: (submission: object | undefined | null) => Promise<object | null>, openTeamStanding: (team: object | undefined | null) => Promise<object | null>, refreshTree: () => Promise<object | null>, submitActiveFile: (problem?: object | undefined | null) => Promise<object | null> }}
+ */
+export function createContestController({
+    context,
+    executeCommand = async () => {},
+    openTextDocument,
+    outputChannel,
+    promptTeamCredentials,
+    resolvePollIntervalMs,
+    resolveBaseUrl,
+    sessionApi,
+    setContext,
+    showInformationMessage,
+    showTextDocument,
+    showErrorMessage,
+    withProgressNotification = async (_title, task) => await task(),
+    submissionWorkspace,
+    teamsStandingsProvider,
+    treeProvider,
+}) {
+    let currentSnapshot = treeProvider.getSnapshot?.() ?? null;
+    let teamsRefreshErrorMessage = null;
+    let teamsRefreshInFlight = false;
+    let teamsRefreshTimer = null;
+
+    const syncTreeState = async (snapshot) => {
+        currentSnapshot = snapshot;
+        treeProvider.setSnapshot(snapshot);
+        teamsStandingsProvider.setSnapshot(snapshot);
+        await setContext(CONTEXT_KEYS.STATE, snapshot ? 'loggedIn' : 'loggedOut');
+        syncTeamsRefreshTimer(snapshot);
+        return snapshot;
+    };
+
+    const handleFailure = async (error) => {
+        outputChannel.appendLine(`ERROR: ${error.message}`);
+        await showErrorMessage(error.message);
+        return null;
+    };
+
+    /**
+     * Trigger an informational toast without letting its lifecycle delay the
+     * command flow when polling progress must continue immediately.
+     * @param {string} message
+     */
+    const notifyInformationMessage = (message) => {
+        void Promise.resolve(showInformationMessage(message));
+    };
+
+    /**
+     * Resolve a required explorer payload and fail clearly when the tree command
+     * is invoked against stale or missing state.
+     * @param {object | undefined | null} value
+     * @param {string} noun
+     * @returns {object | null}
+     */
+    const requireSelection = async (value, noun) => {
+        if (value) {
+            return value;
+        }
+
+        await showErrorMessage(`Select a ${noun} from the contest explorer first.`);
+        return null;
+    };
+
+    /**
+     * Resolve the current submission target from the explicit explorer item.
+     * @param {object | undefined | null} problem
+     * @returns {Promise<object | null>}
+     */
+    const resolveSubmissionProblem = async (problem) => {
+        if (problem) {
+            return problem;
+        }
+
+        await showErrorMessage('Choose a contest problem from Contest Explorer first.');
+        return null;
+    };
+
+    /**
+     * Refresh contest standings on a fixed timer without reloading unrelated
+     * snapshot slices such as problems or submission history.
+     */
+    const refreshTeamsStandings = async () => {
+        if (teamsRefreshInFlight || typeof sessionApi.refreshContestDetails !== 'function') {
+            return;
+        }
+
+        if (!currentSnapshot?.team?.contest?.id) {
+            return;
+        }
+
+        teamsRefreshInFlight = true;
+
+        try {
+            const refreshedContest = await sessionApi.refreshContestDetails({
+                baseUrl: resolveBaseUrl(),
+                contest: currentSnapshot.team.contest,
+                context,
+            });
+
+            teamsRefreshErrorMessage = null;
+
+            if (!refreshedContest) {
+                await syncTreeState(null);
+                return;
+            }
+
+            if (!currentSnapshot) {
+                return;
+            }
+
+            await syncTreeState({
+                ...currentSnapshot,
+                team: {
+                    ...currentSnapshot.team,
+                    contest: refreshedContest,
+                },
+            });
+        }
+        catch (error) {
+            if (teamsRefreshErrorMessage !== error.message) {
+                outputChannel.appendLine(`Standings refresh failed: ${error.message}`);
+                teamsRefreshErrorMessage = error.message;
+            }
+        }
+        finally {
+            teamsRefreshInFlight = false;
+        }
+    };
+
+    /**
+     * Start or stop the timed standings refresh based on the current snapshot.
+     * @param {object | null} snapshot
+     */
+    const syncTeamsRefreshTimer = (snapshot) => {
+        clearTeamsRefreshTimer();
+
+        if (!snapshot?.team?.contest?.id || typeof sessionApi.refreshContestDetails !== 'function') {
+            return;
+        }
+
+        // Keep the standings panel current without requiring manual refreshes.
+        teamsRefreshTimer = setInterval(() => {
+            void refreshTeamsStandings();
+        }, TEAM_PANEL_REFRESH_INTERVAL_MS);
+    };
+
+    /**
+     * Clear the timed standings refresh loop when it is no longer needed.
+     */
+    const clearTeamsRefreshTimer = () => {
+        if (teamsRefreshTimer) {
+            clearInterval(teamsRefreshTimer);
+            teamsRefreshTimer = null;
+        }
+    };
+
+    /**
+     * Merge a newly created submission into the current in-memory snapshot so
+     * both sidebar views update immediately without waiting for a manual refresh.
+     * @param {object} problem
+     * @param {object} submission
+     * @returns {Promise<object | null>}
+     */
+    const mergeSubmissionIntoSnapshot = async (problem, submission) => {
+        if (!currentSnapshot) {
+            return null;
+        }
+
+        const normalizedSubmission = submission.problem
+            ? submission
+            : {
+                ...submission,
+                problem: {
+                    id: problem.id,
+                    title: problem.title,
+                },
+            };
+
+        const nextSnapshot = {
+            ...currentSnapshot,
+            submissions: [
+                normalizedSubmission,
+                ...currentSnapshot.submissions.filter(entry => entry.id !== normalizedSubmission.id),
+            ],
+        };
+
+        await syncTreeState(nextSnapshot);
+        return nextSnapshot;
+    };
+
+    /**
+     * Poll the authenticated submissions feed until the created submission
+     * leaves a pending state, then refresh the visible tree entry in place.
+     * @param {object} problem
+     * @param {object} submission
+     * @returns {Promise<object>}
+     */
+    const waitForFinalSubmissionResult = async (problem, submission) => {
+        if (!isPendingSubmission(submission?.status) || typeof sessionApi.pollSubmissionResult !== 'function') {
+            return submission;
+        }
+
+        const waitMessage = `Waiting for the final verdict for submission #${submission.id}.`;
+        outputChannel.appendLine(waitMessage);
+
+        return await withProgressNotification(waitMessage, async () => {
+            try {
+                const finalSubmission = await sessionApi.pollSubmissionResult({
+                    baseUrl: resolveBaseUrl(),
+                    context,
+                    pollIntervalMs: normalizePollIntervalMs(resolvePollIntervalMs()),
+                    submissionId: submission.id,
+                    timeoutMs: SUBMISSION_POLL_TIMEOUT_MS,
+                });
+
+                if (!finalSubmission) {
+                    const timeoutMessage = `Submission #${submission.id} is still pending. Refresh the explorer later for the final result.`;
+                    outputChannel.appendLine(timeoutMessage);
+                    showInformationMessage(timeoutMessage);
+                    return submission;
+                }
+
+                await mergeSubmissionIntoSnapshot(problem, finalSubmission);
+
+                const finalMessage = `Submission #${finalSubmission.id} finished with ${formatSubmissionStatus(finalSubmission.status)}.`;
+                outputChannel.appendLine(finalMessage);
+                showInformationMessage(finalMessage);
+                return finalSubmission;
+            }
+            catch (error) {
+                const failureMessage = `Submission #${submission.id} polling stopped: ${error.message}`;
+                outputChannel.appendLine(failureMessage);
+                showErrorMessage(`Could not refresh submission #${submission.id}: ${error.message}`);
+                return submission;
+            }
+        });
+    };
+
+    return {
+        /**
+         * Dispose controller-owned timers.
+         */
+        dispose() {
+            clearTeamsRefreshTimer();
+        },
+
+        /**
+         * Prompt for team credentials, then load and display the contest snapshot.
+         * @returns {Promise<object | null>}
+         */
+        async loginTeam() {
+            const credentials = await promptTeamCredentials();
+            if (!credentials) {
+                return null;
+            }
+
+            try {
+                const snapshot = await sessionApi.loginAndLoadContest({
+                    baseUrl: resolveBaseUrl(),
+                    context,
+                    password: credentials.password,
+                    teamId: credentials.teamId,
+                });
+                outputChannel.appendLine(`Logged in as ${snapshot.team.name} for ${snapshot.team.contest.name.trim()}.`);
+                return await syncTreeState(snapshot);
+            }
+            catch (error) {
+                return handleFailure(error);
+            }
+        },
+
+        /**
+         * Clear the stored team session and return the sidebar to the logged-out state.
+         * @returns {Promise<null>}
+         */
+        async logoutTeam() {
+            await sessionApi.clearStoredSession(context);
+            outputChannel.appendLine('Logged out of AutoJudge Contest.');
+            await syncTreeState(null);
+            return null;
+        },
+
+        /**
+         * Open the persisted markdown preview for the selected contest problem.
+         * @param {object | undefined | null} problem
+         * @returns {Promise<unknown | null>}
+         */
+        async openProblem(problem) {
+            const selectedProblem = await requireSelection(problem, 'problem');
+            if (!selectedProblem) {
+                return null;
+            }
+
+            try {
+                const problemPreviewPath = await ensureProblemPreviewFile(context, selectedProblem);
+                const document = await openTextDocument(problemPreviewPath);
+
+                // Use the built-in Markdown viewer so the statement renders as
+                // formatted Markdown from the persisted file instead of an
+                // untitled scratch buffer.
+                await executeCommand('markdown.showPreview', document.uri, {
+                    preview: true,
+                });
+
+                return document;
+            }
+            catch (error) {
+                return handleFailure(error);
+            }
+        },
+
+        /**
+         * Print the full selected submission payload to the output channel.
+         * @param {object | undefined | null} submission
+         * @returns {Promise<object | null>}
+         */
+        async openSubmission(submission) {
+            const selectedSubmission = await requireSelection(submission, 'submission');
+            if (!selectedSubmission) {
+                return null;
+            }
+
+            outputChannel.clear?.();
+            outputChannel.appendLine(renderSubmissionDetails(selectedSubmission));
+            outputChannel.show?.(true);
+            return selectedSubmission;
+        },
+
+        /**
+         * Print the selected standings entry to the output channel.
+         * @param {object | undefined | null} team
+         * @returns {Promise<object | null>}
+         */
+        async openTeamStanding(team) {
+            const selectedTeam = await requireSelection(team, 'team');
+            if (!selectedTeam) {
+                return null;
+            }
+
+            const normalizedScore = formatProblemScore(normalizeStandingScore(selectedTeam));
+            const contestProblems = currentSnapshot?.team?.contest?.problems ?? [];
+            const solvedProblemNames = extractSolvedProblemNames(selectedTeam, contestProblems);
+
+            outputChannel.clear?.();
+            outputChannel.appendLine(`Team: ${selectedTeam.name?.toString().trim() || 'Unknown Team'}`);
+            outputChannel.appendLine(`Score: ${normalizedScore}`);
+            outputChannel.appendLine('Solved Problems:');
+
+            if (solvedProblemNames.length) {
+                for (const problemName of solvedProblemNames) {
+                    outputChannel.appendLine(`- ${problemName}`);
+                }
+            }
+            else {
+                outputChannel.appendLine('- None yet');
+            }
+
+            outputChannel.show?.(true);
+            return selectedTeam;
+        },
+
+        /**
+         * Submit the active editor file for the selected contest problem.
+         * @param {object | undefined | null} problem
+         * @returns {Promise<object | null>}
+         */
+        async submitActiveFile(problem) {
+            const selectedProblem = await resolveSubmissionProblem(problem);
+            if (!selectedProblem) {
+                return null;
+            }
+
+            try {
+                const activeSource = await submissionWorkspace.readActiveSourceFile();
+                const submission = await sessionApi.submitSolution({
+                    baseUrl: resolveBaseUrl(),
+                    code: encodeSourceCode(activeSource.sourceCode),
+                    context,
+                    filename: activeSource.filename,
+                    problemId: selectedProblem.id,
+                });
+
+                await mergeSubmissionIntoSnapshot(selectedProblem, submission);
+                outputChannel.appendLine(`Submitted ${activeSource.filename} to ${selectedProblem.title.trim()}.`);
+                outputChannel.show?.(true);
+                notifyInformationMessage(`Submitted ${activeSource.filename} to ${selectedProblem.title.trim()}.`);
+                return await waitForFinalSubmissionResult(selectedProblem, submission);
+            }
+            catch (error) {
+                return handleFailure(error);
+            }
+        },
+
+        /**
+         * Export public testcase pairs for the selected contest problem.
+         * @param {object | undefined | null} problem
+         * @returns {Promise<object | null>}
+         */
+        async exportPublicCases(problem) {
+            const selectedProblem = await resolveSubmissionProblem(problem);
+            if (!selectedProblem) {
+                return null;
+            }
+
+            try {
+                const publicCases = extractPublicCases(selectedProblem);
+                if (!publicCases.length) {
+                    throw new Error(`No public cases available for ${selectedProblem.title.trim()}.`);
+                }
+
+                const exportResult = await submissionWorkspace.exportPublicCases(selectedProblem, publicCases);
+                outputChannel.appendLine(`Exported ${publicCases.length} public testcase pair${publicCases.length === 1 ? '' : 's'} for ${selectedProblem.title.trim()}.`);
+                await showInformationMessage(`Exported ${publicCases.length} public testcase pair${publicCases.length === 1 ? '' : 's'} for ${selectedProblem.title.trim()}.`);
+                return exportResult;
+            }
+            catch (error) {
+                return handleFailure(error);
+            }
+        },
+
+        /**
+         * Reload the currently stored contest session, if any.
+         * @returns {Promise<object | null>}
+         */
+        async refreshTree() {
+            try {
+                const snapshot = await sessionApi.restoreContestSession({
+                    baseUrl: resolveBaseUrl(),
+                    context,
+                });
+                if (snapshot) {
+                    outputChannel.appendLine(`Loaded ${snapshot.team.contest.name.trim()} for ${snapshot.team.name}.`);
+                }
+                return await syncTreeState(snapshot);
+            }
+            catch (error) {
+                return handleFailure(error);
+            }
+        },
+    };
+}
+
+/**
+ * Normalize the contributed polling interval setting into a safe positive delay.
+ * @param {unknown} value
+ * @returns {number}
+ */
+function normalizePollIntervalMs(value) {
+    const normalizedValue = Number(value);
+    if (!Number.isFinite(normalizedValue)) {
+        return config.POLL_INTERVAL_MS;
+    }
+
+    return Math.max(Math.trunc(normalizedValue), 1000);
+}
+
+/**
+ * Encode the source code to base64 to prepare it for submission.
+ * @param {string} sourceCode The raw source code string to encode
+ * @returns {string} Encoded source code string
+ */
+function encodeSourceCode(sourceCode) {
+    return Buffer.from(sourceCode, 'utf-8').toString('base64');
+}
+
+/**
+ * Create the generated markdown preview file for a contest problem when it is
+ * missing and return its stable path.
+ * @param {object} context
+ * @param {{ id?: string | number, title?: string }} problem
+ * @returns {Promise<string>}
+ */
+async function ensureProblemPreviewFile(context, problem) {
+    const previewDirectory = join(resolveProblemPreviewRoot(context), 'problem-previews');
+    const previewPath = join(previewDirectory, `${toProblemArtifactName(problem)}.md`);
+
+    await mkdir(previewDirectory, { recursive: true });
+
+    await writeFile(previewPath, buildProblemPreviewDocument(problem), {
+        encoding: 'utf-8',
+    });
+
+    return previewPath;
+}
+
+/**
+ * Build the complete markdown preview, including a public cases table when
+ * sample input/output pairs are available.
+ * @param {object} problem
+ * @returns {string}
+ */
+function buildProblemPreviewDocument(problem) {
+    const preview = buildProblemPreview(problem);
+    const publicCasesTable = buildProblemPublicCasesTable(problem);
+
+    if (!publicCasesTable) {
+        return preview;
+    }
+
+    return `${preview.trimEnd()}\n\n${publicCasesTable}\n`;
+}
+
+/**
+ * Render the extracted public input/output pairs as a markdown table.
+ * @param {object} problem
+ * @returns {string}
+ */
+function buildProblemPublicCasesTable(problem) {
+    const publicCases = extractPublicCases(problem);
+    if (!publicCases.length) {
+        return '';
+    }
+
+    const rows = publicCases.map((testCase, index) => {
+        const input = formatMarkdownTableCell(testCase?.input ?? '');
+        const output = formatMarkdownTableCell(testCase?.output ?? '');
+        return `| ${index + 1} | ${input} | ${output} |`;
+    });
+
+    return [
+        '## Public Cases',
+        '',
+        '| Case | Input | Output |',
+        '| --- | --- | --- |',
+        ...rows,
+    ].join('\n');
+}
+
+/**
+ * Format multiline text so it remains readable inside a markdown table cell.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function formatMarkdownTableCell(value) {
+    return String(value ?? '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .map(line => line.replace(/\|/g, '\\|'))
+        .join('<br>');
+}
+
+/**
+ * Resolve the storage root used for generated problem previews.
+ * @param {object} context
+ * @returns {string}
+ */
+function resolveProblemPreviewRoot(context) {
+    return context?.storageUri?.fsPath
+        ?? context?.globalStorageUri?.fsPath
+        ?? join(process.cwd(), '.autojudge-contest');
+}
+
+/**
+ * Build a stable kebab-case artifact name from the problem title.
+ * @param {{ id?: string | number, title?: string }} problem
+ * @returns {string}
+ */
+function toProblemArtifactName(problem) {
+    const slug = `${problem?.title ?? ''}`
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+    if (slug) {
+        return slug;
+    }
+
+    if (problem?.id !== undefined && problem?.id !== null) {
+        return `problem-${problem.id}`;
+    }
+
+    return 'problem';
+}

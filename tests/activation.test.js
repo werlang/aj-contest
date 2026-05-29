@@ -70,7 +70,7 @@ describe('contest extension activation', () => {
                 }),
             }),
             expect.objectContaining({
-                viewId: 'autojudgeContest.submissions',
+                viewId: 'autojudgeContest.teams',
                 options: expect.objectContaining({
                     showCollapseAll: true,
                     treeDataProvider: expect.any(Object),
@@ -85,10 +85,10 @@ describe('contest extension activation', () => {
             'autojudgeContest.submitActiveFile',
             'autojudgeContest.exportPublicCases',
             'autojudgeContest.openSubmission',
+            'autojudgeContest.openTeamStanding',
             'autojudgeContest.createTestCases',
-            'autojudgeContest.selectSubmissionProblem',
         ]);
-        expect(context.subscriptions).toHaveLength(12);
+        expect(context.subscriptions).toHaveLength(14);
     });
 
     it('exports a deactivate function', () => {
@@ -119,8 +119,8 @@ describe('contest manifest contract', () => {
                 name: 'Contest Explorer',
             }),
             expect.objectContaining({
-                id: 'autojudgeContest.submissions',
-                name: 'Team Submissions',
+                id: 'autojudgeContest.teams',
+                name: 'Teams Standings',
             }),
         ]));
         expect(manifest.contributes.viewsWelcome).toEqual(expect.arrayContaining([
@@ -130,7 +130,7 @@ describe('contest manifest contract', () => {
             }),
             expect.objectContaining({
                 contents: expect.stringContaining('autojudgeContest.loginTeam'),
-                view: 'autojudgeContest.submissions',
+                view: 'autojudgeContest.teams',
             }),
         ]));
         expect(manifest.contributes.commands.map(command => command.command)).toEqual(expect.arrayContaining([
@@ -141,7 +141,20 @@ describe('contest manifest contract', () => {
             'autojudgeContest.submitActiveFile',
             'autojudgeContest.exportPublicCases',
             'autojudgeContest.openSubmission',
+            'autojudgeContest.openTeamStanding',
             'autojudgeContest.createTestCases',
+        ]));
+        expect(manifest.contributes.menus['view/item/context']).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                command: 'autojudgeContest.openProblem',
+                when: expect.stringContaining('viewItem == autojudgeContest.problem'),
+            }),
+        ]));
+        expect(manifest.contributes.menus['view/item/context']).not.toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                command: 'autojudgeContest.openSubmission',
+                when: expect.stringContaining('viewItem == autojudgeContest.submission'),
+            }),
         ]));
         expect(manifest.contributes.configuration.properties).toEqual(expect.objectContaining({
             'autojudgeContest.baseUrl': expect.any(Object),

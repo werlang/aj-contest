@@ -1,7 +1,7 @@
 {
   "name": "autojudge-contest",
   "displayName": "AutoJudge Contest",
-  "description": "Browse contest problems, track team submissions, and submit solutions to AutoJudge contests directly from Visual Studio Code.",
+  "description": "Browse contest problems, inspect team standings, and submit solutions to AutoJudge contests directly from Visual Studio Code.",
   "version": "0.1.0",
   "publisher": "autojudge",
   "license": "MIT",
@@ -51,8 +51,8 @@
           "icon": "media/icon.svg"
         },
         {
-          "id": "autojudgeContest.submissions",
-          "name": "Team Submissions",
+          "id": "autojudgeContest.teams",
+          "name": "Teams Standings",
           "icon": "media/icon.svg"
         }
       ]
@@ -64,8 +64,8 @@
         "when": "autojudgeContest.state == loggedOut"
       },
       {
-        "view": "autojudgeContest.submissions",
-        "contents": "[Login Team](command:autojudgeContest.loginTeam)\n\nSign in to choose a contest problem, submit the active file, and manage testcase files.",
+        "view": "autojudgeContest.teams",
+        "contents": "[Login Team](command:autojudgeContest.loginTeam)\n\nSign in to load the latest contest standings and inspect each team's solved problems.",
         "when": "autojudgeContest.state == loggedOut"
       }
     ],
@@ -109,6 +109,11 @@
         "command": "autojudgeContest.openSubmission",
         "title": "AutoJudge Contest: Open Submission Result",
         "icon": "$(history)"
+      },
+      {
+        "command": "autojudgeContest.openTeamStanding",
+        "title": "AutoJudge Contest: Open Team Standing",
+        "icon": "$(organization)"
       }
     ],
     "menus": {
@@ -124,18 +129,23 @@
           "group": "navigation@110"
         },
         {
+          "command": "autojudgeContest.refreshTree",
+          "when": "view == autojudgeContest.teams && autojudgeContest.state == loggedIn",
+          "group": "navigation@100"
+        },
+        {
+          "command": "autojudgeContest.loginTeam",
+          "when": "view == autojudgeContest.teams && autojudgeContest.state == loggedOut",
+          "group": "navigation@110"
+        },
+        {
           "command": "autojudgeContest.logoutTeam",
           "when": "view == autojudgeContest.explorer && autojudgeContest.state == loggedIn",
           "group": "navigation@100"
         },
         {
-          "command": "autojudgeContest.submitActiveFile",
-          "when": "view == autojudgeContest.submissions && autojudgeContest.state == loggedIn && autojudgeContest.hasSelectedSubmissionProblem",
-          "group": "navigation@100"
-        },
-        {
-          "command": "autojudgeContest.createTestCases",
-          "when": "view == autojudgeContest.submissions && autojudgeContest.state == loggedIn && autojudgeContest.hasSelectedSubmissionProblem",
+          "command": "autojudgeContest.logoutTeam",
+          "when": "view == autojudgeContest.teams && autojudgeContest.state == loggedIn",
           "group": "navigation@110"
         }
       ],
@@ -156,24 +166,9 @@
           "group": "inline@120"
         },
         {
-          "command": "autojudgeContest.openSubmission",
-          "when": "view == autojudgeContest.explorer && viewItem == autojudgeContest.submission",
+          "command": "autojudgeContest.openTeamStanding",
+          "when": "view == autojudgeContest.teams && viewItem == autojudgeContest.standingTeam",
           "group": "inline@100"
-        },
-        {
-          "command": "autojudgeContest.submitActiveFile",
-          "when": "view == autojudgeContest.submissions && viewItem == autojudgeContest.submissionPanelProblem",
-          "group": "inline@100"
-        },
-        {
-          "command": "autojudgeContest.exportPublicCases",
-          "when": "view == autojudgeContest.submissions && viewItem == autojudgeContest.submissionPanelProblem",
-          "group": "inline@110"
-        },
-        {
-          "command": "autojudgeContest.createTestCases",
-          "when": "view == autojudgeContest.submissions && viewItem == autojudgeContest.submissionPanelProblem",
-          "group": "inline@120"
         }
       ]
     },

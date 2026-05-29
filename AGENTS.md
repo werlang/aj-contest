@@ -3,24 +3,27 @@
 ## Project Scope
 
 - This repository is a VS Code extension for browsing AutoJudge contest data with team credentials.
-- The implemented runtime currently covers team login, logout, session restore, contest explorer rendering, submission-history display, problem preview, submission-detail output, active-file submission, public testcase export, and testcase-file creation.
-- The sidebar surface now includes both the `Contest Explorer` view and the `Team Submissions` view under the same `AutoJudge Contest` activity-bar container.
+- The implemented runtime currently covers team login, logout, session restore, contest explorer rendering, formatted submission-detail output, explicit problem previews, active-file submission with verdict polling, public testcase export, custom testcase-file creation, teams standings refresh, team-detail output, and an offline contest countdown.
+- The sidebar surface includes `Contest Explorer` and `Teams Standings` under the same `AutoJudge Contest` activity-bar container.
 - Keep changes focused on the extension, its docs, and its agent customizations. Do not add unrelated app or backend patterns.
 
 ## Key Files
 
-- [package.json](package.json): extension manifest, `Contest Explorer` and `Team Submissions` views, contributed commands and menus, and the `autojudgeContest.baseUrl` and `autojudgeContest.pollIntervalMs` settings.
+- [package.json](package.json): extension manifest, `Contest Explorer` and `Teams Standings` views, contributed commands and menus, and the `autojudgeContest.baseUrl` and `autojudgeContest.pollIntervalMs` settings.
 - [src/extension.js](src/extension.js): activation entrypoint that creates the `AutoJudge Contest` output channel, both sidebar views, and the command registrations.
-- [src/commands.js](src/commands.js): command wiring, login prompt flow, base URL resolution, and controller-backed registrations for preview, submission, testcase export, and testcase creation actions.
-- [src/contest-controller.js](src/contest-controller.js): login, logout, refresh, error handling, problem preview, submission-detail rendering, submission workflows, testcase actions, and context synchronization across both views.
-- [src/contest-session.js](src/contest-session.js): session persistence and contest snapshot loading.
-- [src/contest-api.js](src/contest-api.js): AutoJudge contest HTTP contract for team login, current-team lookup, contest problems, submissions, and solution upload.
-- [src/contest-tree-provider.js](src/contest-tree-provider.js): visible contest explorer structure for logged-out and logged-in contest states.
-- [src/submissions-view-provider.js](src/submissions-view-provider.js): selectable `Team Submissions` problem list and current submission target state.
-- [src/contest-public-cases.js](src/contest-public-cases.js): public testcase extraction helpers for contest problems.
-- [src/contest-submission-workspace.js](src/contest-submission-workspace.js): active-file validation plus testcase export and testcase creation file-system workflows.
-- [src/session-store.js](src/session-store.js): VS Code secrets and global state storage for the team session.
-- [tests/activation.test.js](tests/activation.test.js), [tests/contest-controller.test.js](tests/contest-controller.test.js), [tests/contest-public-cases.test.js](tests/contest-public-cases.test.js), [tests/contest-session.test.js](tests/contest-session.test.js), [tests/contest-tree-provider.test.js](tests/contest-tree-provider.test.js), [tests/session-store.test.js](tests/session-store.test.js), [tests/submissions-view-provider.test.js](tests/submissions-view-provider.test.js): current coverage for activation, controller flow, testcase extraction, session persistence, explorer rendering, and submissions-panel behavior.
+- [src/constants.js](src/constants.js): shared view ids, command ids, and tree context values used by the manifest and runtime.
+- [src/commands/contest-commands.js](src/commands/contest-commands.js): command wiring, login prompt flow, base URL resolution, polling-interval resolution, and controller-backed registrations.
+- [src/controllers/contest-controller.js](src/controllers/contest-controller.js): login, logout, refresh, error handling, problem preview, submission-detail rendering, submission polling, testcase actions, standings output, and shared snapshot orchestration.
+- [src/presentation/contest-presentation.js](src/presentation/contest-presentation.js): problem preview, submission formatting, and contest-countdown presentation helpers.
+- [src/providers/contest-tree-provider.js](src/providers/contest-tree-provider.js): visible contest explorer structure, submission click behavior, and offline countdown refresh.
+- [src/providers/teams-standings-provider.js](src/providers/teams-standings-provider.js): score-sorted team standings rows and output-opening commands.
+- [src/services/contest-api.js](src/services/contest-api.js): AutoJudge contest HTTP contract for team login, current-team lookup, contest details, contest problems, submissions, and solution upload.
+- [src/services/contest-session.js](src/services/contest-session.js): session persistence, snapshot loading, standings refresh, and submission-result polling.
+- [src/services/session-store.js](src/services/session-store.js): VS Code secrets and global-state storage for the team session.
+- [src/workspace/contest-public-cases.js](src/workspace/contest-public-cases.js): public testcase extraction helpers for contest problems.
+- [src/workspace/contest-submission-workspace.js](src/workspace/contest-submission-workspace.js): active-file validation plus testcase export and testcase creation file-system workflows.
+- [src/utils/config.js](src/utils/config.js), [src/utils/path-utils.js](src/utils/path-utils.js), [src/utils/standings.js](src/utils/standings.js), [src/utils/submission-status.js](src/utils/submission-status.js): shared extension configuration, path, standings, and submission-state helpers.
+- [tests/activation.test.js](tests/activation.test.js), [tests/contest-controller.test.js](tests/contest-controller.test.js), [tests/contest-public-cases.test.js](tests/contest-public-cases.test.js), [tests/contest-session.test.js](tests/contest-session.test.js), [tests/contest-submission-workspace.test.js](tests/contest-submission-workspace.test.js), [tests/contest-tree-provider.test.js](tests/contest-tree-provider.test.js), [tests/session-store.test.js](tests/session-store.test.js), [tests/teams-standings-provider.test.js](tests/teams-standings-provider.test.js): current coverage for activation, controller flow, testcase extraction, session persistence, explorer rendering, workspace file flows, and teams-standings behavior.
 - [README.md](README.md): user-facing extension behavior and current command status.
 
 ## Project Skills
@@ -36,7 +39,7 @@
 ## Working Conventions
 
 - Use modern ESM-style JavaScript consistent with the existing `import` and named export pattern.
-- Preserve the current ownership boundaries: activation in [src/extension.js](src/extension.js), command registration in [src/commands.js](src/commands.js), controller flow in [src/contest-controller.js](src/contest-controller.js), remote API helpers in [src/contest-api.js](src/contest-api.js), session persistence in [src/contest-session.js](src/contest-session.js) and [src/session-store.js](src/session-store.js), explorer rendering in [src/contest-tree-provider.js](src/contest-tree-provider.js), submissions-panel rendering in [src/submissions-view-provider.js](src/submissions-view-provider.js), and testcase/workspace helpers in [src/contest-public-cases.js](src/contest-public-cases.js) and [src/contest-submission-workspace.js](src/contest-submission-workspace.js).
+- Preserve the current ownership boundaries: activation in [src/extension.js](src/extension.js), command registration in [src/commands/contest-commands.js](src/commands/contest-commands.js), controller flow in [src/controllers/contest-controller.js](src/controllers/contest-controller.js), presentation helpers in [src/presentation/contest-presentation.js](src/presentation/contest-presentation.js), providers in [src/providers/contest-tree-provider.js](src/providers/contest-tree-provider.js) and [src/providers/teams-standings-provider.js](src/providers/teams-standings-provider.js), remote API helpers in [src/services/contest-api.js](src/services/contest-api.js), session persistence in [src/services/contest-session.js](src/services/contest-session.js) and [src/services/session-store.js](src/services/session-store.js), testcase/workspace helpers in [src/workspace/contest-public-cases.js](src/workspace/contest-public-cases.js) and [src/workspace/contest-submission-workspace.js](src/workspace/contest-submission-workspace.js), and neutral shared helpers in [src/utils/](src/utils).
 - Prefer maintainable OOP-friendly structure: keep VS Code registration and prompt glue thin, move stateful contest behavior into the controller or focused helpers, and only introduce new classes when they own a clear long-lived responsibility.
 - If you change a contributed command, menu item, view, or setting, update [package.json](package.json), [README.md](README.md), and any user-facing [CHANGELOG.md](CHANGELOG.md) entry that describes the change.
 - Treat [README.md](README.md) as a VS Code extension README, not a generic library README. Keep the wording centered on extension usage and current capabilities.
@@ -48,28 +51,32 @@
 
 ## Runtime Behavior To Preserve
 
-- The contributed commands are `autojudgeContest.createTestCases`, `autojudgeContest.loginTeam`, `autojudgeContest.logoutTeam`, `autojudgeContest.refreshTree`, `autojudgeContest.openProblem`, `autojudgeContest.submitActiveFile`, `autojudgeContest.exportPublicCases`, and `autojudgeContest.openSubmission`.
+- The contributed commands are `autojudgeContest.createTestCases`, `autojudgeContest.loginTeam`, `autojudgeContest.logoutTeam`, `autojudgeContest.refreshTree`, `autojudgeContest.openProblem`, `autojudgeContest.submitActiveFile`, `autojudgeContest.exportPublicCases`, `autojudgeContest.openSubmission`, and `autojudgeContest.openTeamStanding`.
 - Login prompts for a team id or hash and then a password.
 - Successful login stores the returned token in VS Code secrets and stores the team id in global state.
-- Refresh attempts to restore the stored session, loads the current team, contest problems, and submissions, and updates both sidebar views.
+- Refresh attempts to restore the stored session, loads the current team, contest details, contest problems, and submissions, and updates both sidebar views.
 - If session restore receives `400` or `401`, the stored session is cleared and the view returns to the logged-out state.
-- Both views show a login action when logged out. When logged in, `Contest Explorer` shows a contest header plus problems sorted by `order` with only that problem's submissions nested newest-first, and `Team Submissions` shows all contest problems as selectable submission targets.
-- Opening a problem renders a scratch Markdown preview, and opening a submission clears the `AutoJudge Contest` output channel and prints the full submission payload.
-- Submitting the active file works from the explorer problem actions and the selected `Team Submissions` problem, then merges the new submission into the in-memory snapshot so both views refresh immediately.
-- Exporting public cases and creating testcase files operate on the selected contest problem and use the maintained testcase workspace helper.
-- The configured API base URL must support optional base paths; reuse [src/contest-api.js](src/contest-api.js) normalization instead of rebuilding URLs elsewhere.
+- Both views show a login action when logged out. When logged in, `Contest Explorer` shows a highlighted contest header plus problems sorted by `order`, with only that problem's submissions nested newest-first, and `Teams Standings` shows teams sorted by score.
+- Problem rows do not open on selection. The explicit book action opens a scratch Markdown preview, while submission rows open the formatted submission output directly on selection.
+- The contest header countdown is derived from contest details fetched during snapshot loading and then refreshed offline every second in the tree provider.
+- Submitting the active file works from explorer problem actions, immediately merges the optimistic submission into the in-memory snapshot, then polls until a final result arrives or times out.
+- Opening a team in `Teams Standings` clears the `AutoJudge Contest` output channel and prints the team's score plus solved problem names.
+- `Teams Standings` refreshes on a fixed 15-second interval through the controller's contest-details refresh path.
+- Exporting public cases operates on the selected contest problem and always writes beside the active source file.
+- Creating testcase files operates on the selected contest problem and still honors `autojudge.testcasePath` when that base AutoJudge setting is configured.
+- The configured API base URL must support optional base paths; reuse [src/services/contest-api.js](src/services/contest-api.js) normalization instead of rebuilding URLs elsewhere.
 
 ## Validation
 
 - Run automated checks through the Compose container. The default test command is `docker compose exec extension npm test`.
 - For manifest and docs changes, verify that [package.json](package.json), [README.md](README.md), and [CHANGELOG.md](CHANGELOG.md) stay in sync.
-- For behavior changes, favor manual validation in the Extension Development Host using both `Contest Explorer` and `Team Submissions`, including login, refresh, logout, preview, submission-detail, submit, testcase export, and testcase creation flows.
-- Pair tree, controller, submissions-view, or testcase-workspace changes with focused Vitest coverage when the touched code can be exercised outside VS Code.
+- For behavior changes, favor manual validation in the Extension Development Host using both `Contest Explorer` and `Teams Standings`, including login, refresh, logout, explicit problem preview, submission-detail opening, submit-plus-poll, testcase export, testcase creation, countdown visibility, and team-detail output.
+- Pair tree, controller, standings-provider, or testcase-workspace changes with focused Vitest coverage when the touched code can be exercised outside VS Code.
 
 ## Pitfalls
 
 - Do not assume the public site URL and API URL are the same; the extension targets the API base URL configured by `autojudgeContest.baseUrl`.
 - The login flow uses `POST teams/{teamId}/login` with the password in the `Authorization: Bearer ...` header, then restores the contest snapshot with `GET teams`, `GET contests/{contestId}/problems`, and `GET submissions` before later submission actions reuse the stored contest token.
-- `autojudgeContest.pollIntervalMs` exists in the manifest but is not used by the current runtime yet.
-- Testcase export and testcase creation may honor the base AutoJudge extension's `autojudge.testcasePath` setting when it is available, but the contest extension runtime does not depend on a separate `autojudgeContest.baseExtensionInstalled` context key.
-- Legacy run/test files such as [src/runner.js](src/runner.js), [src/input-resolver.js](src/input-resolver.js), and related helpers are not part of the current activation flow for this contest extension.
+- `autojudgeContest.pollIntervalMs` is only for post-submit verdict polling; the standings refresh cadence stays fixed at 15 seconds.
+- Public-case export ignores `autojudge.testcasePath` and writes beside the active source file, while testcase creation may still honor the base AutoJudge extension setting when it is available.
+- Contest countdown rendering depends on contest details exposing `remainingTime`, which the session layer converts into `countdownTargetMs` during snapshot loading.

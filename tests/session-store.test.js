@@ -35,7 +35,7 @@ function createContext() {
 describe('VS Code contest session storage', () => {
     it('stores the token in secrets and only non-sensitive metadata in global state', async () => {
         const context = createContext();
-        const store = await import('../src/session-store.js');
+        const store = await import('../src/services/session-store.js');
 
         await store.writeStoredSession(context, {
             teamId: 'abc123',
@@ -50,7 +50,7 @@ describe('VS Code contest session storage', () => {
 
     it('removes both the token and metadata when the session is cleared', async () => {
         const context = createContext();
-        const store = await import('../src/session-store.js');
+        const store = await import('../src/services/session-store.js');
 
         await store.writeStoredSession(context, {
             teamId: 'abc123',

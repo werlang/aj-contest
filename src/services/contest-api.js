@@ -47,6 +47,21 @@ export async function getCurrentTeam({ baseUrl, token, signal }) {
 }
 
 /**
+ * Fetch the authenticated team's contest details, including countdown fields.
+ * @param {{ baseUrl: string, contestId: number | string, token: string, signal?: AbortSignal }} options
+ * @returns {Promise<{ contest: object }>}
+ */
+export async function getContestDetails({ baseUrl, contestId, token, signal }) {
+    return requestJson({
+        baseUrl,
+        endpoint: `contests/${contestId}`,
+        headers: buildAuthHeaders(token),
+        method: 'GET',
+        signal,
+    });
+}
+
+/**
  * Fetch the contest-visible problem list for the authenticated team.
  * @param {{ baseUrl: string, contestId: number | string, token: string, signal?: AbortSignal }} options
  * @returns {Promise<{ problems: object[] }>}

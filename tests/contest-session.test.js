@@ -51,6 +51,9 @@ beforeEach(() => {
 
 describe('contest session flow', () => {
     it('logs a team in, persists the session token, and loads the contest snapshot', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-05-29T12:00:00.000Z'));
+
         const context = createContext();
         fetchMock
             .mockResolvedValueOnce(jsonResponse({ token: 'team-jwt-token' }))
@@ -62,7 +65,37 @@ describe('contest session flow', () => {
                     contest: {
                         id: 4,
                         name: 'Regional Final',
+                        description: 'Regional ICPC warm-up',
+                        logo: 'regional-final.webp',
                     },
+                },
+            }))
+            .mockResolvedValueOnce(jsonResponse({
+                contest: {
+                    id: 4,
+                    name: 'Regional Final',
+                    duration: 180,
+                    remainingTime: 90_000,
+                    startTime: '2026-05-29T09:00:00.000Z',
+                    teams: [
+                        {
+                            id: 9,
+                            name: 'Bits',
+                            score: 200,
+                            problems: [
+                                { id: 1, order: 1, solved: true, title: 'A + B' },
+                            ],
+                        },
+                        {
+                            id: 12,
+                            name: 'Array Ninjas',
+                            score: 350,
+                            problems: [
+                                { id: 1, order: 1, solved: true, title: 'A + B' },
+                                { id: 2, order: 2, solved: true, title: 'Binary Search' },
+                            ],
+                        },
+                    ],
                 },
             }))
             .mockResolvedValueOnce(jsonResponse({
@@ -76,7 +109,7 @@ describe('contest session flow', () => {
                 ],
             }));
 
-        const session = await import('../src/contest-session.js');
+        const session = await import('../src/services/contest-session.js');
         const result = await session.loginAndLoadContest({
             baseUrl: 'https://api.autojudge.test/base',
             context,
@@ -96,13 +129,19 @@ describe('contest session flow', () => {
                 Authorization: 'Bearer team-jwt-token',
             }),
         }));
-        expect(fetchMock).toHaveBeenNthCalledWith(3, 'https://api.autojudge.test/base/contests/4/problems', expect.objectContaining({
+        expect(fetchMock).toHaveBeenNthCalledWith(3, 'https://api.autojudge.test/base/contests/4', expect.objectContaining({
             method: 'GET',
             headers: expect.objectContaining({
                 Authorization: 'Bearer team-jwt-token',
             }),
         }));
-        expect(fetchMock).toHaveBeenNthCalledWith(4, 'https://api.autojudge.test/base/submissions', expect.objectContaining({
+        expect(fetchMock).toHaveBeenNthCalledWith(4, 'https://api.autojudge.test/base/contests/4/problems', expect.objectContaining({
+            method: 'GET',
+            headers: expect.objectContaining({
+                Authorization: 'Bearer team-jwt-token',
+            }),
+        }));
+        expect(fetchMock).toHaveBeenNthCalledWith(5, 'https://api.autojudge.test/base/submissions', expect.objectContaining({
             method: 'GET',
             headers: expect.objectContaining({
                 Authorization: 'Bearer team-jwt-token',
@@ -120,8 +159,33 @@ describe('contest session flow', () => {
                 hash: 'teamhash9',
                 name: 'Bits',
                 contest: {
+                    countdownTargetMs: new Date('2026-05-29T12:01:30.000Z').getTime(),
+                    description: 'Regional ICPC warm-up',
+                    duration: 180,
                     id: 4,
                     name: 'Regional Final',
+                    logo: 'regional-final.webp',
+                    remainingTime: 90_000,
+                    startTime: '2026-05-29T09:00:00.000Z',
+                    teams: [
+                        {
+                            id: 9,
+                            name: 'Bits',
+                            score: 200,
+                            problems: [
+                                { id: 1, order: 1, solved: true, title: 'A + B' },
+                            ],
+                        },
+                        {
+                            id: 12,
+                            name: 'Array Ninjas',
+                            score: 350,
+                            problems: [
+                                { id: 1, order: 1, solved: true, title: 'A + B' },
+                                { id: 2, order: 2, solved: true, title: 'Binary Search' },
+                            ],
+                        },
+                    ],
                 },
             },
             token: 'team-jwt-token',
@@ -132,11 +196,13 @@ describe('contest session flow', () => {
             teamId: 'teamhash9',
             token: 'team-jwt-token',
         });
+
+        vi.useRealTimers();
     });
 
     it('clears an invalid saved session instead of keeping a broken token around', async () => {
         const context = createContext();
-        const session = await import('../src/contest-session.js');
+        const session = await import('../src/services/contest-session.js');
 
         await session.writeStoredSession(context, {
             teamId: 'ghost-team',
@@ -156,7 +222,7 @@ describe('contest session flow', () => {
 
     it('submits a solution with the stored contest token', async () => {
         const context = createContext();
-        const session = await import('../src/contest-session.js');
+        const session = await import('../src/services/contest-session.js');
 
         await session.writeStoredSession(context, {
             teamId: 'teamhash9',
@@ -178,7 +244,7 @@ describe('contest session flow', () => {
             problemId: 1,
         });
 
-        expect(fetchMock).toHaveBeenCalledWith('https://api.autojudge.test/base/submissions', expect.objectContaining({
+        expect(fetchMock).toHaveBeenCalledWith('https://api.autojudge.test/base/problems/1/judge', expect.objectContaining({
             body: JSON.stringify({
                 code: 'print("hi")\n',
                 filename: 'main.py',
@@ -194,5 +260,104 @@ describe('contest session flow', () => {
             id: 31,
             status: 'PENDING',
         });
+    });
+
+    it('polls submission history until the created submission reaches a final verdict', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-05-29T12:00:00.000Z'));
+
+        const context = createContext();
+        const session = await import('../src/services/contest-session.js');
+
+        await session.writeStoredSession(context, {
+            teamId: 'teamhash9',
+            token: 'team-jwt-token',
+        });
+
+        fetchMock
+            .mockResolvedValueOnce(jsonResponse({
+                submissions: [
+                    { id: 31, status: 'PENDING' },
+                ],
+            }))
+            .mockResolvedValueOnce(jsonResponse({
+                submissions: [
+                    { id: 31, status: 'RUNNING' },
+                ],
+            }))
+            .mockResolvedValueOnce(jsonResponse({
+                submissions: [
+                    { id: 31, status: 'ACCEPTED' },
+                ],
+            }));
+
+        const pollPromise = session.pollSubmissionResult({
+            baseUrl: 'https://api.autojudge.test/base',
+            context,
+            pollIntervalMs: 1000,
+            submissionId: 31,
+            timeoutMs: 3000,
+        });
+
+        await vi.advanceTimersByTimeAsync(2000);
+
+        await expect(pollPromise).resolves.toEqual({
+            id: 31,
+            status: 'ACCEPTED',
+        });
+        expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://api.autojudge.test/base/submissions', expect.objectContaining({
+            method: 'GET',
+            headers: expect.objectContaining({
+                Authorization: 'Bearer team-jwt-token',
+            }),
+        }));
+        expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://api.autojudge.test/base/submissions', expect.objectContaining({
+            method: 'GET',
+            headers: expect.objectContaining({
+                Authorization: 'Bearer team-jwt-token',
+            }),
+        }));
+        expect(fetchMock).toHaveBeenNthCalledWith(3, 'https://api.autojudge.test/base/submissions', expect.objectContaining({
+            method: 'GET',
+            headers: expect.objectContaining({
+                Authorization: 'Bearer team-jwt-token',
+            }),
+        }));
+
+        vi.useRealTimers();
+    });
+
+    it('returns null when submission polling reaches the timeout without a final verdict', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-05-29T12:00:00.000Z'));
+
+        const context = createContext();
+        const session = await import('../src/services/contest-session.js');
+
+        await session.writeStoredSession(context, {
+            teamId: 'teamhash9',
+            token: 'team-jwt-token',
+        });
+
+        fetchMock.mockResolvedValue(jsonResponse({
+            submissions: [
+                { id: 31, status: 'PENDING' },
+            ],
+        }));
+
+        const pollPromise = session.pollSubmissionResult({
+            baseUrl: 'https://api.autojudge.test/base',
+            context,
+            pollIntervalMs: 1000,
+            submissionId: 31,
+            timeoutMs: 2000,
+        });
+
+        await vi.advanceTimersByTimeAsync(2000);
+
+        await expect(pollPromise).resolves.toBeNull();
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+
+        vi.useRealTimers();
     });
 });

@@ -1,71 +1,69 @@
 # AutoJudge Contest
 
-Use your AutoJudge team credentials to browse contest problems, inspect submissions, and send solutions without leaving VS Code.
+Browse contest problems, watch verdicts land, inspect team standings, and submit solutions to AutoJudge without leaving VS Code.
 
 ## Features
 
-- Adds an `AutoJudge Contest` activity-bar container with two sidebar views: `Contest Explorer` and `Team Submissions`.
-- Shows a `Login Team` welcome action while logged out, then restores the contest snapshot after successful authentication.
-- Displays contest problems as collapsible explorer items with only that problem's submissions nested underneath, sorted newest first.
-- Shows submission verdict icons in the explorer and opens the full submission payload in the `AutoJudge Contest` output channel when you click a submission.
-- Opens a scratch Markdown preview for any contest problem directly from the explorer.
-- Lets you select a problem in `Team Submissions` and reuse that target for submit, export, and testcase actions.
-- Submits the active saved source file from either the explorer inline action or the `Team Submissions` toolbar.
-- Exports public testcase pairs and creates empty custom `.in`/`.out` testcase files in the maintained AutoJudge testcase layout.
+- Adds an `AutoJudge Contest` activity-bar container with two views: `Contest Explorer` and `Teams Standings`.
+- Signs in with your AutoJudge team id or hash, restores the saved session, and reloads the current contest snapshot on refresh.
+- Highlights the contest header with your team name and an offline countdown that keeps updating every second after the contest details are fetched.
+- Keeps problem rows focused on navigation: use the book action to open the statement preview, then click submission rows directly to open a formatted result in the `AutoJudge Contest` output channel.
+- Submits the active saved source file from a problem row and polls automatically until a final verdict arrives or the timeout path is reached.
+- Exports public testcase pairs beside the active source file.
+- Creates the next empty custom testcase pair in `autojudge.testcasePath` when that base AutoJudge setting is configured, or beside the active source file when it is not.
+- Shows `Teams Standings` sorted by score, refreshes that panel every 15 seconds, and prints the selected team's score plus solved problems to the output channel.
 - Supports hosted or self-hosted AutoJudge API deployments through a configurable base URL.
 
 ## Install
 
-This repository is currently set up for local development or private packaging.
+This extension is currently packaged from this repository for local development or private distribution.
 
 To try it locally:
 
 1. Open this repository in VS Code.
-2. Start the dev container services with `docker compose up -d --build`.
+2. Start the development container with `docker compose up -d --build`.
 3. Install dependencies with `docker compose exec extension npm install`.
-4. Press `F5` in VS Code to launch an Extension Development Host.
+4. Press `F5` to launch an Extension Development Host.
 
-To package a build, run `docker compose exec extension npm run build` and install the generated `.vsix` from the Extensions view.
+To install a packaged build, run `docker compose exec extension npm run build`, then install the generated `.vsix` from the Extensions view.
 
 ## Quick Start
 
-1. Open the `AutoJudge Contest` view from the activity bar.
-2. Click `Login Team` in the welcome state or run `AutoJudge Contest: Login Team`.
+1. Open `AutoJudge Contest` from the activity bar.
+2. Run `AutoJudge Contest: Login Team` or use the welcome action.
 3. Enter your team id or hash, then the team password.
-4. In `Contest Explorer`, expand a problem to inspect its submissions, click the problem to open a preview, or click a submission to print its full result payload in the output channel.
-5. In `Team Submissions`, click a problem to mark it as the current submission target.
-6. Open a saved supported source file and use the selected problem's row actions for `Submit Active File`, `Export Public Cases`, or `Create Test Cases`, or use the `Team Submissions` toolbar for `Submit Active File` and `Create Test Cases` after a problem is selected.
-7. Use `AutoJudge Contest: Refresh Contest Tree` to reload the current snapshot or `AutoJudge Contest: Logout Team` to clear the stored session.
+4. In `Contest Explorer`, expand a problem to inspect its submissions. Use the book icon to open the problem statement, or use the inline actions to submit the active file or export public cases.
+5. Click any submission row to open its result in the `AutoJudge Contest` output channel.
+6. Run `AutoJudge Contest: Create Test Cases` when you want the next empty custom testcase pair for a selected problem.
+7. Open `Teams Standings` to monitor the current ranking. Click a team row to print that team's score and solved problems.
+8. Run `AutoJudge Contest: Refresh Contest Tree` to reload the current snapshot, or `AutoJudge Contest: Logout Team` to clear the saved session.
 
 ## Commands
 
-- `AutoJudge Contest: Login Team` (`autojudgeContest.loginTeam`): prompts for team credentials, authenticates against the configured API, and loads the contest tree.
-- `AutoJudge Contest: Logout Team` (`autojudgeContest.logoutTeam`): removes the stored team session and returns the tree to the logged-out state.
-- `AutoJudge Contest: Refresh Contest Tree` (`autojudgeContest.refreshTree`): reloads the stored session and refreshes contest, problem, and submission data.
-- `AutoJudge Contest: Open Problem` (`autojudgeContest.openProblem`): opens a scratch Markdown preview for the clicked contest problem.
-- `AutoJudge Contest: Submit Active File` (`autojudgeContest.submitActiveFile`): submits the active saved `.c`, `.cpp`, `.java`, `.js`, `.php`, or `.py` file to the clicked explorer problem or the currently selected `Team Submissions` problem.
-- `AutoJudge Contest: Export Public Cases` (`autojudgeContest.exportPublicCases`): writes the selected problem's public testcase pairs as `.in`/`.out` files.
-- `AutoJudge Contest: Open Submission Result` (`autojudgeContest.openSubmission`): clears the output channel and prints the full submission payload for the clicked submission.
+- `AutoJudge Contest: Login Team` (`autojudgeContest.loginTeam`): prompts for team credentials, authenticates against the configured API, and loads the contest snapshot.
+- `AutoJudge Contest: Logout Team` (`autojudgeContest.logoutTeam`): clears the stored team session and returns both views to the logged-out state.
+- `AutoJudge Contest: Refresh Contest Tree` (`autojudgeContest.refreshTree`): reloads the stored session and refreshes contest, problem, submission, and standings data.
+- `AutoJudge Contest: Open Problem` (`autojudgeContest.openProblem`): opens a scratch Markdown preview for the selected contest problem.
+- `AutoJudge Contest: Submit Active File` (`autojudgeContest.submitActiveFile`): submits the active saved `.c`, `.cpp`, `.java`, `.js`, `.php`, or `.py` file for the selected contest problem and polls for the final verdict.
+- `AutoJudge Contest: Export Public Cases` (`autojudgeContest.exportPublicCases`): writes the selected problem's public testcase pairs as `.in` and `.out` files beside the active source file.
 - `AutoJudge Contest: Create Test Cases` (`autojudgeContest.createTestCases`): creates the next empty custom testcase pair for the selected problem.
+- `AutoJudge Contest: Open Submission Result` (`autojudgeContest.openSubmission`): clears the output channel and prints the formatted submission details plus raw payload for the selected submission.
+- `AutoJudge Contest: Open Team Standing` (`autojudgeContest.openTeamStanding`): clears the output channel and prints the selected team's score plus solved problems.
 
-The `Contest Explorer` title contributes refresh plus login/logout actions based on session state. The `Team Submissions` title contributes `Submit Active File` and `Create Test Cases` after a submission problem is selected. Problem and submission actions are also available inline on their corresponding sidebar rows.
-
-## Keyboard Shortcuts
-
-This version does not contribute any default keyboard shortcuts.
+The `Contest Explorer` title contributes refresh plus login or logout actions depending on session state. The `Teams Standings` title contributes refresh and login or logout actions for the same state transitions. The explorer's inline problem actions cover opening the statement, submitting the active file, and exporting public cases, while submission rows and standings rows open directly when selected.
 
 ## Configuration
 
 - `autojudgeContest.baseUrl`
-  - Full AutoJudge API base URL used for team login, contest loading, and submission history requests.
+  - Full AutoJudge API base URL used for team login, contest loading, submission polling, and standings refresh.
   - Default: `https://api.autojudge.io`
   - Base paths are preserved, so values such as `https://example.com/api` are valid.
 - `autojudgeContest.pollIntervalMs`
-  - Contributed setting reserved for future verdict polling work.
+  - Polling interval, in milliseconds, used while waiting for a final submission verdict.
   - Default: `5000`
-  - The current runtime does not use this value yet.
+  - Minimum: `1000`
 
-Testcase export and testcase creation also honor the `autojudge.testcasePath` setting from the base AutoJudge extension when that setting is available. Otherwise, files are created next to the active source file.
+The standings refresh cadence is fixed at 15 seconds and is not currently user-configurable.
 
 Example:
 
@@ -78,12 +76,12 @@ Example:
 
 ## Troubleshooting
 
-- If login fails immediately, verify that `autojudgeContest.baseUrl` points at the AutoJudge API and not just the public site.
-- If the stored session expires or becomes invalid, refreshing the tree silently clears the saved session and returns the view to the logged-out state.
-- Submission, testcase export, and testcase creation require an active saved source file with one of these extensions: `.c`, `.cpp`, `.java`, `.js`, `.php`, or `.py`.
-- If testcase files are not appearing where you expect, check whether `autojudge.testcasePath` is configured in the base AutoJudge extension. If it is unset, files are written beside the active source file.
-- Submission details are written to the `AutoJudge Contest` output channel, so open that output channel if you want to keep the payload visible while switching files.
+- If login fails immediately, verify that `autojudgeContest.baseUrl` points at the AutoJudge API and not only the public website.
+- If refresh returns you to the logged-out state, the stored session likely expired or became invalid and was cleared automatically.
+- Submission, public-case export, and testcase creation all require an active saved source file with one of these extensions: `.c`, `.cpp`, `.java`, `.js`, `.php`, or `.py`.
+- Public-case export always writes beside the active source file. Custom testcase creation follows `autojudge.testcasePath` from the base AutoJudge extension when that setting exists; otherwise it also writes beside the active source file.
+- Submission details and team-standing details are written to the `AutoJudge Contest` output channel. Keep that channel visible if you want to compare multiple results.
 
 ## Release Notes
 
-See [CHANGELOG.md](CHANGELOG.md) for repository history and documentation updates.
+See [CHANGELOG.md](CHANGELOG.md) for the current release history.

@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-import { registerContestCommands } from './commands.js';
-import { CONTEST_VIEW_ID, CONTEXT_KEYS, SUBMISSIONS_VIEW_ID } from './constants.js';
-import { ContestTreeProvider } from './contest-tree-provider.js';
-import { SubmissionsViewProvider } from './submissions-tree-provider.js';
+import { registerContestCommands } from './commands/contest-commands.js';
+import { CONTEST_VIEW_ID, CONTEXT_KEYS, TEAMS_VIEW_ID } from './constants.js';
+import { ContestTreeProvider } from './providers/contest-tree-provider.js';
+import { TeamsStandingsProvider } from './providers/teams-tree-provider.js';
 
 /**
  * Activate the AutoJudge Contest extension and register the sidebar surface.
@@ -11,26 +11,25 @@ import { SubmissionsViewProvider } from './submissions-tree-provider.js';
 export async function activate(context) {
     const outputChannel = vscode.window.createOutputChannel('AutoJudge Contest');
     const treeProvider = new ContestTreeProvider();
-    const submissionsViewProvider = new SubmissionsViewProvider();
+    const teamsStandingsProvider = new TeamsStandingsProvider();
     await vscode.commands.executeCommand('setContext', CONTEXT_KEYS.STATE, 'loggedOut');
-    await vscode.commands.executeCommand('setContext', CONTEXT_KEYS.HAS_SELECTED_SUBMISSION_PROBLEM, false);
     const treeView = vscode.window.createTreeView(CONTEST_VIEW_ID, {
         showCollapseAll: true,
         treeDataProvider: treeProvider,
     });
-    const submissionsView = vscode.window.createTreeView(SUBMISSIONS_VIEW_ID, {
+    const teamsView = vscode.window.createTreeView(TEAMS_VIEW_ID, {
         showCollapseAll: true,
-        treeDataProvider: submissionsViewProvider,
+        treeDataProvider: teamsStandingsProvider,
     });
 
     const commandDisposables = registerContestCommands({
         context,
-        submissionsViewProvider,
+        teamsStandingsProvider,
         treeProvider,
         outputChannel,
     });
 
-    context.subscriptions.push(outputChannel, treeView, submissionsView, ...commandDisposables);
+    context.subscriptions.push(outputChannel, treeProvider, treeView, teamsView, ...commandDisposables);
 }
 
 /**

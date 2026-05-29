@@ -1,12 +1,21 @@
 import * as vscode from 'vscode';
-import { formatSubmissionStatus, isPassedSubmission, isPendingSubmission } from './contest-presentation.js';
-import { COMMANDS, TREE_CONTEXT } from './constants.js';
+import {
+    buildContestHeaderDescription,
+    formatSubmissionStatus,
+    resolveContestCountdownTarget,
+} from '../presentation/contest-presentation.js';
+import { COMMANDS, TREE_CONTEXT } from '../constants.js';
+import { isPassedSubmission, isPendingSubmission } from '../utils/submission-status.js';
+
+const COUNTDOWN_REFRESH_INTERVAL_MS = 1000;
 
 /**
  * Provide the contest explorer tree for logged-in contest snapshots.
  */
 export class ContestTreeProvider {
     constructor() {
+        this.countdownTargetMs = null;
+        this.countdownTimer = null;
         this.listeners = new Set();
         this.snapshot = null;
         this.state = 'loggedOut';
@@ -47,8 +56,17 @@ export class ContestTreeProvider {
      */
     setSnapshot(snapshot) {
         this.snapshot = snapshot;
+        this.countdownTargetMs = resolveContestCountdownTarget(snapshot?.team?.contest ?? null);
         this.state = snapshot ? 'loggedIn' : 'loggedOut';
+        this.syncCountdownTimer();
         this.refresh();
+    }
+
+    /**
+     * Dispose the tree provider and stop any local countdown refresh interval.
+     */
+    dispose() {
+        this.clearCountdownTimer();
     }
 
     /**
@@ -99,11 +117,6 @@ export class ContestTreeProvider {
                     description: `${submissions.length} submission${submissions.length === 1 ? '' : 's'}`,
                     collapsibleState: submissions.length ? 1 : 0,
                     contextValue: TREE_CONTEXT.PROBLEM,
-                    command: {
-                        command: COMMANDS.OPEN_PROBLEM,
-                        title: 'Open Problem',
-                        arguments: [problem],
-                    },
                     children: submissions,
                     problem,
                 };
@@ -112,9 +125,11 @@ export class ContestTreeProvider {
         return [
             {
                 label: this.snapshot.team.contest.name.trim(),
-                description: this.snapshot.team.name.trim(),
+                description: buildContestHeaderDescription(this.snapshot.team, this.countdownTargetMs),
                 collapsibleState: 0,
                 contextValue: TREE_CONTEXT.CONTEST,
+                iconPath: new vscode.ThemeIcon('trophy', new vscode.ThemeColor('charts.blue')),
+                tooltip: buildContestHeaderTooltip(this.snapshot.team, this.countdownTargetMs),
             },
             ...problemItems,
         ];
@@ -127,6 +142,36 @@ export class ContestTreeProvider {
      */
     getTreeItem(element) {
         return element;
+    }
+
+    /**
+     * Start or stop the local countdown refresh based on the current snapshot.
+     */
+    syncCountdownTimer() {
+        this.clearCountdownTimer();
+
+        if (this.countdownTargetMs == null || this.countdownTargetMs <= Date.now()) {
+            return;
+        }
+
+        // Keep the countdown current without re-fetching contest data each second.
+        this.countdownTimer = setInterval(() => {
+            this.refresh();
+
+            if (this.countdownTargetMs != null && this.countdownTargetMs <= Date.now()) {
+                this.clearCountdownTimer();
+            }
+        }, COUNTDOWN_REFRESH_INTERVAL_MS);
+    }
+
+    /**
+     * Clear the local countdown refresh interval when it is no longer needed.
+     */
+    clearCountdownTimer() {
+        if (this.countdownTimer) {
+            clearInterval(this.countdownTimer);
+            this.countdownTimer = null;
+        }
     }
 }
 
@@ -145,4 +190,21 @@ function getSubmissionIcon(status) {
     }
 
     return new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
+}
+
+/**
+ * Build the richer contest-header tooltip shown in the explorer.
+ * @param {{ contest?: { name?: string }, name?: string }} team
+ * @param {number | null} countdownTargetMs
+ * @returns {string}
+ */
+function buildContestHeaderTooltip(team, countdownTargetMs) {
+    const tooltipLines = [team?.contest?.name?.toString().trim() || 'Contest'];
+    const description = buildContestHeaderDescription(team, countdownTargetMs);
+
+    if (description) {
+        tooltipLines.push(description);
+    }
+
+    return tooltipLines.join('\n');
 }
