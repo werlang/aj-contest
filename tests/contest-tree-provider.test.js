@@ -1,20 +1,27 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('vscode', () => ({
+    ThemeColor: class ThemeColor {
+        constructor(id) {
+            this.id = id;
+        }
+    },
+    ThemeIcon: class ThemeIcon {
+        constructor(id, color) {
+            this.id = id;
+            this.color = color;
+        }
+    },
+}), { virtual: true });
+
 import { ContestTreeProvider } from '../src/contest-tree-provider.js';
-import { COMMANDS, TREE_CONTEXT } from '../src/constants.js';
+import { TREE_CONTEXT } from '../src/constants.js';
 
 describe('contest tree provider', () => {
-    it('shows a login action while no contest snapshot is loaded', () => {
+    it('returns an empty tree while no contest snapshot is loaded so the welcome action can render', () => {
         const provider = new ContestTreeProvider();
 
-        expect(provider.getChildren()).toEqual([
-            expect.objectContaining({
-                command: expect.objectContaining({
-                    command: COMMANDS.LOGIN_TEAM,
-                }),
-                contextValue: TREE_CONTEXT.LOGIN,
-                label: 'Login to AutoJudge',
-            }),
-        ]);
+        expect(provider.getChildren()).toEqual([]);
     });
 
     it('renders the contest header, problems, and per-problem submissions after login', () => {
@@ -70,15 +77,24 @@ describe('contest tree provider', () => {
         const problemChildren = provider.getChildren(rootChildren[1]);
         expect(problemChildren).toEqual([
             expect.objectContaining({
-                command: expect.objectContaining({
-                    command: COMMANDS.OPEN_SUBMISSION,
-                }),
                 contextValue: TREE_CONTEXT.SUBMISSION,
-                description: 'ACCEPTED',
+                description: 'Accepted',
+                iconPath: expect.objectContaining({
+                    color: expect.objectContaining({
+                        id: 'testing.iconPassed',
+                    }),
+                    id: 'pass-filled',
+                }),
                 label: '#12',
             }),
             expect.objectContaining({
-                description: 'WRONG_ANSWER',
+                description: 'Wrong Answer',
+                iconPath: expect.objectContaining({
+                    color: expect.objectContaining({
+                        id: 'testing.iconFailed',
+                    }),
+                    id: 'error',
+                }),
                 label: '#11',
             }),
         ]);

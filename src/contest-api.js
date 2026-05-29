@@ -77,6 +77,29 @@ export async function getSubmissions({ baseUrl, token, signal }) {
 }
 
 /**
+ * Submit source code for one contest problem as the authenticated team.
+ * @param {{ baseUrl: string, code: string, filename: string, problemId: number | string, token: string, signal?: AbortSignal }} options
+ * @returns {Promise<{ submission?: object } | object>}
+ */
+export async function submitSolution({ baseUrl, code, filename, problemId, token, signal }) {
+    return requestJson({
+        baseUrl,
+        body: {
+            code,
+            filename,
+            problemId,
+        },
+        endpoint: `problems/${problemId}/judge`,
+        headers: {
+            ...buildAuthHeaders(token),
+            'Content-Type': 'application/json',
+        },
+        method: 'POST',
+        signal,
+    });
+}
+
+/**
  * Build a contest API endpoint against the configured base URL.
  * @param {string} baseUrl
  * @param {string} endpoint

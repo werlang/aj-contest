@@ -1,8 +1,9 @@
+import * as vscode from 'vscode';
+import { formatSubmissionStatus, isPassedSubmission, isPendingSubmission } from './contest-presentation.js';
 import { COMMANDS, TREE_CONTEXT } from './constants.js';
 
 /**
- * Minimal tree provider used to bootstrap the contest sidebar before the auth
- * and API-backed contest state are implemented.
+ * Provide the contest explorer tree for logged-in contest snapshots.
  */
 export class ContestTreeProvider {
     constructor() {
@@ -51,6 +52,14 @@ export class ContestTreeProvider {
     }
 
     /**
+     * Return the currently rendered contest snapshot.
+     * @returns {{ problems: object[], submissions: object[], team: object, token: string } | null}
+     */
+    getSnapshot() {
+        return this.snapshot;
+    }
+
+    /**
      * Return the visible children for a given tree node.
      * @param {Record<string, unknown> | undefined} element
      * @returns {Array<Record<string, unknown>>}
@@ -61,18 +70,7 @@ export class ContestTreeProvider {
         }
 
         if (!this.snapshot || this.state === 'loggedOut') {
-            return [
-                {
-                    label: 'Login to AutoJudge',
-                    description: 'Team access required',
-                    collapsibleState: 0,
-                    contextValue: TREE_CONTEXT.LOGIN,
-                    command: {
-                        command: COMMANDS.LOGIN_TEAM,
-                        title: 'Login Team',
-                    },
-                },
-            ];
+            return [];
         }
 
         const problemItems = this.snapshot.problems
@@ -84,9 +82,10 @@ export class ContestTreeProvider {
                     .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime())
                     .map(submission => ({
                         label: `#${submission.id}`,
-                        description: submission.status,
+                        description: formatSubmissionStatus(submission.status),
                         collapsibleState: 0,
                         contextValue: TREE_CONTEXT.SUBMISSION,
+                        iconPath: getSubmissionIcon(submission.status),
                         command: {
                             command: COMMANDS.OPEN_SUBMISSION,
                             title: 'Open Submission Result',
@@ -129,4 +128,21 @@ export class ContestTreeProvider {
     getTreeItem(element) {
         return element;
     }
+}
+
+/**
+ * Map an AutoJudge submission status to a deterministic tree icon at the VS Code boundary.
+ * @param {string | undefined | null} status
+ * @returns {import('vscode').ThemeIcon}
+ */
+function getSubmissionIcon(status) {
+    if (isPassedSubmission(status)) {
+        return new vscode.ThemeIcon('pass-filled', new vscode.ThemeColor('testing.iconPassed'));
+    }
+
+    if (isPendingSubmission(status)) {
+        return new vscode.ThemeIcon('history', new vscode.ThemeColor('charts.yellow'));
+    }
+
+    return new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
 }

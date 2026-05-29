@@ -39,7 +39,7 @@
         {
           "id": "autojudgeContest",
           "title": "AutoJudge Contest",
-          "icon": "$(robot)"
+          "icon": "media/icon.svg"
         }
       ]
     },
@@ -48,11 +48,33 @@
         {
           "id": "autojudgeContest.explorer",
           "name": "Contest Explorer",
-          "icon": "$(robot)"
+          "icon": "media/icon.svg"
+        },
+        {
+          "id": "autojudgeContest.submissions",
+          "name": "Team Submissions",
+          "icon": "media/icon.svg"
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "autojudgeContest.explorer",
+        "contents": "[Login Team](command:autojudgeContest.loginTeam)\n\nSign in with your AutoJudge team id or hash to load contest problems and submissions.",
+        "when": "autojudgeContest.state == loggedOut"
+      },
+      {
+        "view": "autojudgeContest.submissions",
+        "contents": "[Login Team](command:autojudgeContest.loginTeam)\n\nSign in to choose a contest problem, submit the active file, and manage testcase files.",
+        "when": "autojudgeContest.state == loggedOut"
+      }
+    ],
     "commands": [
+      {
+        "command": "autojudgeContest.createTestCases",
+        "title": "AutoJudge Contest: Create Test Cases",
+        "icon": "$(new-file)"
+      },
       {
         "command": "autojudgeContest.loginTeam",
         "title": "AutoJudge Contest: Login Team",
@@ -105,6 +127,16 @@
           "command": "autojudgeContest.logoutTeam",
           "when": "view == autojudgeContest.explorer && autojudgeContest.state == loggedIn",
           "group": "navigation@100"
+        },
+        {
+          "command": "autojudgeContest.submitActiveFile",
+          "when": "view == autojudgeContest.submissions && autojudgeContest.state == loggedIn && autojudgeContest.hasSelectedSubmissionProblem",
+          "group": "navigation@100"
+        },
+        {
+          "command": "autojudgeContest.createTestCases",
+          "when": "view == autojudgeContest.submissions && autojudgeContest.state == loggedIn && autojudgeContest.hasSelectedSubmissionProblem",
+          "group": "navigation@110"
         }
       ],
       "view/item/context": [
@@ -120,13 +152,28 @@
         },
         {
           "command": "autojudgeContest.exportPublicCases",
-          "when": "view == autojudgeContest.explorer && viewItem == autojudgeContest.problem && autojudgeContest.baseExtensionInstalled",
+          "when": "view == autojudgeContest.explorer && viewItem == autojudgeContest.problem",
           "group": "inline@120"
         },
         {
           "command": "autojudgeContest.openSubmission",
           "when": "view == autojudgeContest.explorer && viewItem == autojudgeContest.submission",
           "group": "inline@100"
+        },
+        {
+          "command": "autojudgeContest.submitActiveFile",
+          "when": "view == autojudgeContest.submissions && viewItem == autojudgeContest.submissionPanelProblem",
+          "group": "inline@100"
+        },
+        {
+          "command": "autojudgeContest.exportPublicCases",
+          "when": "view == autojudgeContest.submissions && viewItem == autojudgeContest.submissionPanelProblem",
+          "group": "inline@110"
+        },
+        {
+          "command": "autojudgeContest.createTestCases",
+          "when": "view == autojudgeContest.submissions && viewItem == autojudgeContest.submissionPanelProblem",
+          "group": "inline@120"
         }
       ]
     },

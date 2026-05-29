@@ -1,4 +1,4 @@
-import { getContestProblems, getCurrentTeam, getSubmissions, loginTeam } from './contest-api.js';
+import { getContestProblems, getCurrentTeam, getSubmissions, loginTeam, submitSolution as submitContestSolution } from './contest-api.js';
 import { clearStoredSession, readStoredSession, writeStoredSession } from './session-store.js';
 
 export { clearStoredSession, readStoredSession, writeStoredSession };
@@ -40,6 +40,28 @@ export async function restoreContestSession({ baseUrl, context }) {
 
         throw error;
     }
+}
+
+/**
+ * Submit source code for a contest problem using the stored team token.
+ * @param {{ baseUrl: string, code: string, context: import('vscode').ExtensionContext | { secrets: object, globalState: object }, filename: string, problemId: number | string }} options
+ * @returns {Promise<object>}
+ */
+export async function submitSolution({ baseUrl, code, context, filename, problemId }) {
+    const session = await readStoredSession(context);
+    if (!session?.token) {
+        throw new Error('Log in to AutoJudge Contest before submitting a solution.');
+    }
+
+    const response = await submitContestSolution({
+        baseUrl,
+        code,
+        filename,
+        problemId,
+        token: session.token,
+    });
+
+    return response.submission ?? response;
 }
 
 /**

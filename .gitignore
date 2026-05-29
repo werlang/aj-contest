@@ -1,4 +1,5 @@
 .DS_Store
+.agents/orchestrator
 node_modules/
 dist/
 TODO.md

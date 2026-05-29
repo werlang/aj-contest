@@ -1,30 +1,35 @@
 # Manual Validation
 
-Use this checklist when a runtime change cannot be proven with an existing automated command.
+Use this checklist when a contest-extension runtime change cannot be fully proven with focused Vitest coverage.
 
-## Run Flow Smoke Test
+## Core Sidebar Smoke Test
 
 1. Launch the extension in an Extension Development Host.
-2. Open a saved, supported source file on disk.
-3. Confirm both `AutoJudge: Run Active File (Code Runner)` and `AutoJudge: Test Active File` are available.
-4. Confirm the editor title button is visible for supported file-backed editors and launches coderunner mode.
-5. Run each command and inspect the `AutoJudge` output channel.
-6. Verify the output shows the file name, configured server, explicit mode, resolved input source, case count, queue id, and final result.
+2. Open the `AutoJudge Contest` activity-bar container and confirm the `Contest Explorer` view loads.
+3. In the logged-out state, confirm the view shows the `Login Team` welcome action and the view title also exposes the same login command.
+4. Run `AutoJudge Contest: Login Team`, enter a valid team id or hash plus password, and confirm the login completes.
+5. Inspect the `AutoJudge Contest` output channel and confirm login or refresh messages are helpful but do not expose passwords, tokens, or raw authorization headers.
+6. Confirm the logged-in tree shows the contest header, problems sorted by `order`, and each problem's submissions nested beneath that problem and sorted newest-first.
+7. Run `AutoJudge Contest: Refresh Contest Tree` and confirm the current snapshot reloads cleanly without duplicating nodes or leaving stale state behind.
+8. Run `AutoJudge Contest: Logout Team` and confirm the stored session is cleared and the tree returns to the logged-out state.
 
-## Edge Cases
+## Failure-Path Checks
 
-1. Unsupported extension: confirm the extension shows a concise error and does not start a run.
-2. Unsaved or non-file editor: confirm the extension blocks the action with a clear message.
-3. Configured testcase folder: confirm a folder set through `autojudge.testcasePath` is read in alphabetical `.in` order and renders a multi-case result summary.
-4. Blank `autojudge.testcasePath`: confirm the extension uses the source file directory as the testcase folder.
-5. No `.in` files in the testcase folder: confirm the extension sends a single empty input string.
-6. coderunner mode: confirm the extension ignores `.out` files and still runs every `.in` case.
-7. Full `.in` and `.out` coverage in test mode: confirm expected outputs are sent in matching case order.
-8. Missing one `.out` file in test mode: confirm the run fails before queueing and names the missing output file.
-9. Missing configured testcase folder or a configured path that points to a file: confirm the run stops with a clear error.
-10. Cancellation: cancel the progress notification and confirm the run stops cleanly with a cancellation message.
-11. Custom base URL with a base path: confirm requests still target `/judge` and `/judge/{id}` under that base path.
+1. Cancel either login prompt and confirm the extension stays logged out and does not persist a partial session.
+2. Point `autojudgeContest.baseUrl` at an invalid, unreachable, or unauthorized API and confirm the error is concise for the user while the output channel still avoids secret leakage.
+3. Simulate an expired or invalid stored session that returns `400` or `401` during restore and confirm the extension clears the saved session and resets the tree to the logged-out state.
+4. Configure a base URL that includes a base path, such as `https://example.com/api`, and confirm contest requests still resolve correctly under that path.
+
+## Explorer Command Checks
+
+1. Confirm problem nodes remain collapsible and submission nodes only appear beneath their owning problem.
+2. Confirm problem actions stay attached to problem items and submission actions stay attached to submission items.
+3. Run `Open Problem` on a problem item and confirm it opens the clicked problem in a scratch Markdown preview.
+4. Run `Submit Active File` from a problem item with a saved supported source file open and confirm the submission succeeds, both sidebar views refresh promptly, and the new submission appears under the owning problem newest-first.
+5. Run `Export Public Cases` on a problem item and confirm the extension writes the selected problem's public `.in` and `.out` files through the maintained testcase-workspace flow.
+6. Run `Open Submission Result` on a submission item and confirm the `AutoJudge Contest` output channel is cleared and repopulated with the full clicked submission payload.
+7. If a future task changes one of these command contracts, update only the affected check while keeping the auth, ordering, and stale-session checks above.
 
 ## Manifest Coupling Checks
 
-If the runtime change alters supported languages, commands, or settings, also validate the manifest and docs with the `autojudge-manifest-sync` skill.
+If the runtime change alters commands, views, menus, or settings, also validate `package.json`, `README.md`, and `CHANGELOG.md` with the `autojudge-manifest-sync` skill so the extension docs stay aligned with the runtime.

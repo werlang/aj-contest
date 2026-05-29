@@ -18,6 +18,8 @@ const registerCommand = vi.fn((command, callback) => {
     return { dispose: vi.fn() };
 });
 
+const executeCommand = vi.fn();
+
 const createTreeView = vi.fn((viewId, options) => {
     createdTreeViews.push({ viewId, options });
     return { dispose: vi.fn() };
@@ -25,6 +27,7 @@ const createTreeView = vi.fn((viewId, options) => {
 
 vi.mock('vscode', () => ({
     commands: {
+        executeCommand,
         registerCommand,
     },
     window: {
@@ -45,6 +48,7 @@ beforeEach(() => {
     createdTreeViews.length = 0;
     createOutputChannel.mockClear();
     registerCommand.mockClear();
+    executeCommand.mockClear();
     createTreeView.mockClear();
 });
 
@@ -54,11 +58,25 @@ describe('contest extension activation', () => {
 
         await extensionModule.activate(context);
 
+        expect(executeCommand).toHaveBeenCalledWith('setContext', 'autojudgeContest.state', 'loggedOut');
+        expect(executeCommand.mock.invocationCallOrder[0]).toBeLessThan(createTreeView.mock.invocationCallOrder[0]);
         expect(createOutputChannel).toHaveBeenCalledWith('AutoJudge Contest');
-        expect(createTreeView).toHaveBeenCalledWith('autojudgeContest.explorer', expect.objectContaining({
-            showCollapseAll: true,
-            treeDataProvider: expect.any(Object),
-        }));
+        expect(createdTreeViews).toEqual([
+            expect.objectContaining({
+                viewId: 'autojudgeContest.explorer',
+                options: expect.objectContaining({
+                    showCollapseAll: true,
+                    treeDataProvider: expect.any(Object),
+                }),
+            }),
+            expect.objectContaining({
+                viewId: 'autojudgeContest.submissions',
+                options: expect.objectContaining({
+                    showCollapseAll: true,
+                    treeDataProvider: expect.any(Object),
+                }),
+            }),
+        ]);
         expect(registeredCommands.map(({ command }) => command)).toEqual([
             'autojudgeContest.loginTeam',
             'autojudgeContest.logoutTeam',
@@ -67,8 +85,10 @@ describe('contest extension activation', () => {
             'autojudgeContest.submitActiveFile',
             'autojudgeContest.exportPublicCases',
             'autojudgeContest.openSubmission',
+            'autojudgeContest.createTestCases',
+            'autojudgeContest.selectSubmissionProblem',
         ]);
-        expect(context.subscriptions).toHaveLength(9);
+        expect(context.subscriptions).toHaveLength(12);
     });
 
     it('exports a deactivate function', () => {
@@ -96,7 +116,21 @@ describe('contest manifest contract', () => {
         expect(manifest.contributes.views.autojudgeContest).toEqual(expect.arrayContaining([
             expect.objectContaining({
                 id: 'autojudgeContest.explorer',
-                name: 'Contest',
+                name: 'Contest Explorer',
+            }),
+            expect.objectContaining({
+                id: 'autojudgeContest.submissions',
+                name: 'Team Submissions',
+            }),
+        ]));
+        expect(manifest.contributes.viewsWelcome).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                contents: expect.stringContaining('autojudgeContest.loginTeam'),
+                view: 'autojudgeContest.explorer',
+            }),
+            expect.objectContaining({
+                contents: expect.stringContaining('autojudgeContest.loginTeam'),
+                view: 'autojudgeContest.submissions',
             }),
         ]));
         expect(manifest.contributes.commands.map(command => command.command)).toEqual(expect.arrayContaining([
@@ -107,6 +141,7 @@ describe('contest manifest contract', () => {
             'autojudgeContest.submitActiveFile',
             'autojudgeContest.exportPublicCases',
             'autojudgeContest.openSubmission',
+            'autojudgeContest.createTestCases',
         ]));
         expect(manifest.contributes.configuration.properties).toEqual(expect.objectContaining({
             'autojudgeContest.baseUrl': expect.any(Object),

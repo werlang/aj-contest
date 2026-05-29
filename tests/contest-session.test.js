@@ -153,4 +153,46 @@ describe('contest session flow', () => {
         expect(restored).toBeNull();
         expect(await session.readStoredSession(context)).toBeNull();
     });
+
+    it('submits a solution with the stored contest token', async () => {
+        const context = createContext();
+        const session = await import('../src/contest-session.js');
+
+        await session.writeStoredSession(context, {
+            teamId: 'teamhash9',
+            token: 'team-jwt-token',
+        });
+
+        fetchMock.mockResolvedValueOnce(jsonResponse({
+            submission: {
+                id: 31,
+                status: 'PENDING',
+            },
+        }, 201));
+
+        const result = await session.submitSolution({
+            baseUrl: 'https://api.autojudge.test/base',
+            code: 'print("hi")\n',
+            context,
+            filename: 'main.py',
+            problemId: 1,
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith('https://api.autojudge.test/base/submissions', expect.objectContaining({
+            body: JSON.stringify({
+                code: 'print("hi")\n',
+                filename: 'main.py',
+                problemId: 1,
+            }),
+            headers: expect.objectContaining({
+                Authorization: 'Bearer team-jwt-token',
+                'Content-Type': 'application/json',
+            }),
+            method: 'POST',
+        }));
+        expect(result).toEqual({
+            id: 31,
+            status: 'PENDING',
+        });
+    });
 });
