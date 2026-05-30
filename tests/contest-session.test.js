@@ -2,6 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchMock = vi.fn();
 
+vi.mock('vscode', () => ({
+    workspace: {
+        getConfiguration: () => ({
+            get: (_key, fallbackValue) => fallbackValue,
+        }),
+    },
+}), { virtual: true });
+
 function createContext() {
     const secrets = new Map();
     const state = new Map();

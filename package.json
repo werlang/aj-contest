@@ -71,11 +71,6 @@
     ],
     "commands": [
       {
-        "command": "autojudgeContest.createTestCases",
-        "title": "AutoJudge Contest: Create Test Cases",
-        "icon": "$(new-file)"
-      },
-      {
         "command": "autojudgeContest.loginTeam",
         "title": "AutoJudge Contest: Login Team",
         "icon": "$(account)"

@@ -3,14 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { extractPublicCases } from '../src/workspace/contest-public-cases.js';
 
 describe('contest public testcase extraction', () => {
-    it('reads explicit publicCases arrays from the problem payload', () => {
+    it('reads paired input/output arrays from the problem payload', () => {
         expect(extractPublicCases({
-            publicCases: [
-                {
-                    input: '1 2\n',
-                    output: '3\n',
-                },
-            ],
+            input: ['1 2\n'],
+            output: ['3\n'],
         })).toEqual([
             {
                 input: '1 2\n',
@@ -19,7 +15,7 @@ describe('contest public testcase extraction', () => {
         ]);
     });
 
-    it('treats empty-string explicit public case objects as valid sample content', () => {
+    it('ignores legacy publicCases objects that are no longer read from the runtime payload', () => {
         expect(extractPublicCases({
             publicCases: [
                 {
@@ -27,12 +23,7 @@ describe('contest public testcase extraction', () => {
                     output: '',
                 },
             ],
-        })).toEqual([
-            {
-                input: '',
-                output: '',
-            },
-        ]);
+        })).toEqual([]);
     });
 
     it('builds one exported pair from top-level API input and output fields', () => {
@@ -49,18 +40,13 @@ describe('contest public testcase extraction', () => {
         ]);
     });
 
-    it('treats empty-string top-level API input and output fields as valid sample content', () => {
+    it('ignores empty-string top-level API input and output fields', () => {
         expect(extractPublicCases({
             id: 12,
             title: 'Echo',
             input: '',
             output: '',
-        })).toEqual([
-            {
-                input: '',
-                output: '',
-            },
-        ]);
+        })).toEqual([]);
     });
 
     it('ignores malformed top-level API fields without crashing', () => {
@@ -72,7 +58,7 @@ describe('contest public testcase extraction', () => {
         })).toEqual([]);
     });
 
-    it('filters generic testcase arrays down to public entries only', () => {
+    it('ignores unsupported generic testcase arrays', () => {
         expect(extractPublicCases({
             testcases: [
                 {
@@ -86,15 +72,10 @@ describe('contest public testcase extraction', () => {
                     public: false,
                 },
             ],
-        })).toEqual([
-            {
-                input: '1\n',
-                output: '1\n',
-            },
-        ]);
+        })).toEqual([]);
     });
 
-    it('prefers explicit public-case collections over mixed top-level API fields', () => {
+    it('falls back to top-level API fields when legacy publicCases are also present', () => {
         expect(extractPublicCases({
             input: 'fallback input\n',
             output: 'fallback output\n',
@@ -106,26 +87,24 @@ describe('contest public testcase extraction', () => {
             ],
         })).toEqual([
             {
-                input: '1 2\n',
-                output: '3\n',
+                input: 'fallback input\n',
+                output: 'fallback output\n',
             },
         ]);
     });
 
-    it('keeps explicit empty-string public cases ahead of mixed top-level fallback fields', () => {
+    it('parses JSON-encoded input and output arrays from API fields', () => {
         expect(extractPublicCases({
-            input: 'fallback input\n',
-            output: 'fallback output\n',
-            publicCases: [
-                {
-                    input: '',
-                    output: '',
-                },
-            ],
+            input: '["1 2\\n", "4 5\\n"]',
+            output: '["3\\n", "9\\n"]',
         })).toEqual([
             {
-                input: '',
-                output: '',
+                input: '1 2\n',
+                output: '3\n',
+            },
+            {
+                input: '4 5\n',
+                output: '9\n',
             },
         ]);
     });

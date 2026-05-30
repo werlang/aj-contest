@@ -61,7 +61,6 @@ export function registerContestCommands({ context, teamsStandingsProvider, treeP
         sessionApi: contestSession,
         setContext: (key, value) => vscode.commands.executeCommand('setContext', key, value),
         showInformationMessage: (message) => vscode.window.showInformationMessage(message),
-        showTextDocument: (document, options) => vscode.window.showTextDocument(document, options),
         showErrorMessage: (message) => vscode.window.showErrorMessage(message),
         withProgressNotification: (title, task) => vscode.window.withProgress({
             cancellable: false,

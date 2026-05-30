@@ -1,7 +1,6 @@
 import path from 'path';
 import * as vscode from 'vscode';
 import { SUPPORTED_EXTENSIONS } from '../utils/config.js';
-import { resolveConfiguredPathUri } from '../utils/path-utils.js';
 
 const textEncoder = new TextEncoder();
 
@@ -31,7 +30,8 @@ export class ContestSubmissionWorkspace {
      * @returns {Promise<{ destinationUri: import('vscode').Uri, writtenPairs: { inputUri: import('vscode').Uri, outputUri: import('vscode').Uri }[] }>}
      */
     async exportPublicCases(problem, publicCases) {
-        const { destinationUri } = this.resolveActiveSourceDirectory();
+        const document = this.requireActiveSourceDocument();
+        const destinationUri = vscode.Uri.file(path.dirname(document.uri.fsPath));
         await vscode.workspace.fs.createDirectory(destinationUri);
 
         const writtenPairs = [];
@@ -48,33 +48,6 @@ export class ContestSubmissionWorkspace {
             destinationUri,
             writtenPairs,
         };
-    }
-
-    /**
-     * Resolve the active source file directory for public testcase export.
-     * @returns {{ destinationUri: import('vscode').Uri, sourceUri: import('vscode').Uri }}
-     */
-    resolveActiveSourceDirectory() {
-        const document = this.requireActiveSourceDocument();
-
-        return {
-            destinationUri: vscode.Uri.file(path.dirname(document.uri.fsPath)),
-            sourceUri: document.uri,
-        };
-    }
-
-    /**
-     * Read directory contents and treat missing folders as empty.
-     * @param {import('vscode').Uri} uri
-     * @returns {Promise<[string, import('vscode').FileType][]>}
-     */
-    async readDirectory(uri) {
-        try {
-            return await vscode.workspace.fs.readDirectory(uri);
-        }
-        catch {
-            return [];
-        }
     }
 
     /**

@@ -25,14 +25,24 @@ const createTreeView = vi.fn((viewId, options) => {
     return { dispose: vi.fn() };
 });
 
+const getConfiguration = vi.fn(() => ({
+    get: (_key, fallbackValue) => fallbackValue,
+}));
+
 vi.mock('vscode', () => ({
     commands: {
         executeCommand,
         registerCommand,
     },
+    ProgressLocation: {
+        Notification: 15,
+    },
     window: {
         createOutputChannel,
         createTreeView,
+    },
+    workspace: {
+        getConfiguration,
     },
 }), { virtual: true });
 
@@ -50,6 +60,7 @@ beforeEach(() => {
     registerCommand.mockClear();
     executeCommand.mockClear();
     createTreeView.mockClear();
+    getConfiguration.mockClear();
 });
 
 describe('contest extension activation', () => {
@@ -86,9 +97,8 @@ describe('contest extension activation', () => {
             'autojudgeContest.exportPublicCases',
             'autojudgeContest.openSubmission',
             'autojudgeContest.openTeamStanding',
-            'autojudgeContest.createTestCases',
         ]);
-        expect(context.subscriptions).toHaveLength(14);
+        expect(context.subscriptions).toHaveLength(13);
     });
 
     it('exports a deactivate function', () => {
@@ -142,8 +152,8 @@ describe('contest manifest contract', () => {
             'autojudgeContest.exportPublicCases',
             'autojudgeContest.openSubmission',
             'autojudgeContest.openTeamStanding',
-            'autojudgeContest.createTestCases',
         ]));
+        expect(manifest.contributes.commands.map(command => command.command)).not.toContain('autojudgeContest.createTestCases');
         expect(manifest.contributes.menus['view/item/context']).toEqual(expect.arrayContaining([
             expect.objectContaining({
                 command: 'autojudgeContest.openProblem',

@@ -1,4 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const fsState = vi.hoisted(() => ({
+    mkdir: vi.fn(),
+    writeFile: vi.fn(),
+}));
+
+vi.mock('node:fs/promises', () => ({
+    mkdir: fsState.mkdir,
+    writeFile: fsState.writeFile,
+}));
+
+vi.mock('vscode', () => ({
+    workspace: {
+        getConfiguration: () => ({
+            get: (_key, fallbackValue) => fallbackValue,
+        }),
+    },
+}), { virtual: true });
+
 import { createContestController } from '../src/controllers/contest-controller.js';
 
 async function flushPromises(turns = 10) {
@@ -12,12 +31,8 @@ function createSnapshot() {
         problems: [{
             id: 1,
             hash: 'prob-a',
-            publicCases: [
-                {
-                    input: '1 2\n',
-                    output: '3\n',
-                },
-            ],
+            input: ['1 2\n'],
+            output: ['3\n'],
             title: 'A + B',
         }],
         submissions: [],
@@ -25,23 +40,22 @@ function createSnapshot() {
             contest: {
                 id: 4,
                 name: 'Regional Final',
+                problems: [
+                    { id: 1, order: 1, title: 'A + B' },
+                    { id: 2, order: 2, title: 'Binary Search' },
+                ],
                 teams: [
                     {
                         id: 12,
                         name: 'Array Ninjas',
-                        score: 350,
-                        problems: [
-                            { id: 1, order: 1, solved: true, title: 'A + B' },
-                            { id: 2, order: 2, solved: true, title: 'Binary Search' },
-                        ],
+                        score: 350000,
+                        solvedProblems: [1, 2],
                     },
                     {
                         id: 9,
                         name: 'Bits',
-                        score: 200,
-                        problems: [
-                            { id: 1, order: 1, solved: true, title: 'A + B' },
-                        ],
+                        score: 200000,
+                        solvedProblems: [1],
                     },
                 ],
             },
@@ -70,12 +84,19 @@ describe('contest controller', () => {
     let treeProvider;
 
     beforeEach(() => {
-        context = { id: 'extension-context' };
+        context = {
+            id: 'extension-context',
+            storageUri: {
+                fsPath: '/workspace/.autojudge-state',
+            },
+        };
         outputChannel = {
             appendLine: vi.fn(),
             clear: vi.fn(),
             show: vi.fn(),
         };
+        fsState.mkdir.mockReset();
+        fsState.writeFile.mockReset();
         openTextDocument = vi.fn();
         promptTeamCredentials = vi.fn();
         resolvePollIntervalMs = vi.fn(() => 1500);
@@ -95,7 +116,6 @@ describe('contest controller', () => {
         showErrorMessage = vi.fn();
         withProgressNotification = vi.fn(async (_title, task) => await task());
         submissionWorkspace = {
-            createTestCases: vi.fn(),
             exportPublicCases: vi.fn(),
             readActiveSourceFile: vi.fn(),
         };
@@ -208,7 +228,7 @@ describe('contest controller', () => {
     });
 
     it('opens a markdown problem preview from the clicked problem item', async () => {
-        const document = { uri: 'untitled:autojudge-problem' };
+        const document = { uri: 'file:///workspace/.autojudge-state/problem-previews/a-b.md' };
         openTextDocument.mockResolvedValue(document);
 
         const controller = createContestController({
@@ -237,13 +257,16 @@ describe('contest controller', () => {
             title: 'A + B',
         });
 
-        expect(openTextDocument).toHaveBeenCalledWith(expect.objectContaining({
-            content: expect.stringContaining('# A + B'),
-            language: 'markdown',
-        }));
-        expect(openTextDocument).toHaveBeenCalledWith(expect.objectContaining({
-            content: expect.stringContaining('`prob-a`'),
-        }));
+        expect(fsState.mkdir).toHaveBeenCalledWith('/workspace/.autojudge-state/problem-previews', {
+            recursive: true,
+        });
+        expect(fsState.writeFile).toHaveBeenCalledWith(
+            '/workspace/.autojudge-state/problem-previews/a-b.md',
+            expect.stringContaining('# A + B'),
+            { encoding: 'utf-8' }
+        );
+        expect(fsState.writeFile.mock.calls[0][1]).toContain('Add two integers.');
+        expect(openTextDocument).toHaveBeenCalledWith('/workspace/.autojudge-state/problem-previews/a-b.md');
         expect(executeCommand).toHaveBeenCalledWith('markdown.showPreview', document.uri, expect.any(Object));
         expect(showTextDocument).not.toHaveBeenCalled();
         expect(showErrorMessage).not.toHaveBeenCalled();
@@ -270,26 +293,27 @@ describe('contest controller', () => {
 
         const submission = {
             id: 12,
-            memory: '32 MB',
             problem: { id: 1, title: 'A + B' },
+            score: 90000,
             status: 'ACCEPTED',
             submittedAt: '2026-05-28T03:10:00.000Z',
-            time: '15 ms',
         };
 
         await controller.openSubmission(submission);
 
         expect(outputChannel.clear).toHaveBeenCalledTimes(1);
-        expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Submission #12'));
-        expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Status: Accepted'));
-        expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Problem: A + B (#1)'));
-        expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Payload'));
+        expect(outputChannel.appendLine).toHaveBeenCalledTimes(1);
+        expect(outputChannel.appendLine.mock.calls[0][0]).toContain('Submission #12');
+        expect(outputChannel.appendLine.mock.calls[0][0]).toContain('Status: Accepted');
+        expect(outputChannel.appendLine.mock.calls[0][0]).toContain('Problem: A + B (#1)');
+        expect(outputChannel.appendLine.mock.calls[0][0]).toContain('Time: 1.5 min');
         expect(outputChannel.show).toHaveBeenCalledWith(true);
         expect(showErrorMessage).not.toHaveBeenCalled();
     });
 
     it('prints a clicked standings team to the output channel', async () => {
         const snapshot = createSnapshot();
+        treeProvider.getSnapshot.mockReturnValue(snapshot);
 
         const controller = createContestController({
             context,
@@ -313,7 +337,7 @@ describe('contest controller', () => {
 
         expect(outputChannel.clear).toHaveBeenCalledTimes(1);
         expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Team: Array Ninjas'));
-        expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Score: 350'));
+    expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Score: 5.8 min'));
         expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Solved Problems:'));
         expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('- A + B'));
         expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('- Binary Search'));
@@ -359,7 +383,7 @@ describe('contest controller', () => {
 
         expect(sessionApi.submitSolution).toHaveBeenCalledWith({
             baseUrl: 'https://api.autojudge.test',
-            code: '#include <iostream>\nint main() { return 0; }\n',
+            code: Buffer.from('#include <iostream>\nint main() { return 0; }\n', 'utf-8').toString('base64'),
             context,
             filename: 'main.cpp',
             problemId: 1,
@@ -443,7 +467,7 @@ describe('contest controller', () => {
             'Waiting for the final verdict for submission #27.',
             expect.any(Function)
         );
-        expect(showInformationMessage).toHaveBeenCalledWith('Waiting for the final verdict for submission #27.');
+        expect(showInformationMessage).toHaveBeenCalledWith('Submitted main.cpp to A + B.');
         expect(showInformationMessage).toHaveBeenCalledWith('Submission #27 finished with Accepted.');
         expect(result).toEqual(finalSubmission);
     });
@@ -576,7 +600,7 @@ describe('contest controller', () => {
             'Waiting for the final verdict for submission #27.',
             expect.any(Function)
         );
-        expect(showInformationMessage).toHaveBeenCalledWith('Waiting for the final verdict for submission #27.');
+        expect(showInformationMessage).toHaveBeenCalledWith('Submitted main.cpp to A + B.');
         expect(showInformationMessage).toHaveBeenCalledWith('Submission #27 is still pending. Refresh the explorer later for the final result.');
         expect(showErrorMessage).not.toHaveBeenCalled();
         expect(result).toEqual(createdSubmission);
@@ -695,39 +719,6 @@ describe('contest controller', () => {
         expect(showErrorMessage).toHaveBeenCalledWith('No public cases available for A + B.');
         expect(outputChannel.appendLine).toHaveBeenCalledWith('ERROR: No public cases available for A + B.');
         expect(result).toBeNull();
-    });
-
-    it('creates an empty testcase pair for the selected problem', async () => {
-        const snapshot = createSnapshot();
-        submissionWorkspace.createTestCases.mockResolvedValue({
-            inputUri: { fsPath: '/workspace/cases/prob-a-custom-01.in' },
-            outputUri: { fsPath: '/workspace/cases/prob-a-custom-01.out' },
-        });
-
-        const controller = createContestController({
-            context,
-            openTextDocument,
-            outputChannel,
-            promptTeamCredentials,
-            resolveBaseUrl,
-            sessionApi,
-            setContext,
-            showInformationMessage,
-            showTextDocument,
-            showErrorMessage,
-            submissionWorkspace,
-            teamsStandingsProvider,
-            treeProvider,
-        });
-
-        const result = await controller.createTestCases(snapshot.problems[0]);
-
-        expect(submissionWorkspace.createTestCases).toHaveBeenCalledWith(snapshot.problems[0]);
-        expect(showInformationMessage).toHaveBeenCalledWith('Created testcase files for A + B.');
-        expect(result).toEqual(expect.objectContaining({
-            inputUri: expect.any(Object),
-            outputUri: expect.any(Object),
-        }));
     });
 
     it('refreshes the standings snapshot on a fixed timer after login without relying on provider-owned snapshot state', async () => {

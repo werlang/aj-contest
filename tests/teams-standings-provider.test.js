@@ -18,19 +18,14 @@ describe('teams standings provider', () => {
                         {
                             id: 9,
                             name: 'Bits',
-                            score: 200,
-                            problems: [
-                                { id: 1, order: 1, solved: true, title: 'A + B' },
-                            ],
+                            score: 200000,
+                            solvedProblems: [1],
                         },
                         {
                             id: 12,
                             name: 'Array Ninjas',
-                            score: 350,
-                            problems: [
-                                { id: 1, order: 1, solved: true, title: 'A + B' },
-                                { id: 2, order: 2, solved: true, title: 'Binary Search' },
-                            ],
+                            score: 350000,
+                            solvedProblems: [1, 2],
                         },
                     ],
                 },
@@ -45,12 +40,12 @@ describe('teams standings provider', () => {
                     command: COMMANDS.OPEN_TEAM_STANDING,
                 }),
                 contextValue: TREE_CONTEXT.STANDING_TEAM,
-                description: '350 points | 2 solved',
+                description: '2 solved | 5.8 min',
                 label: 'Array Ninjas',
             }),
             expect.objectContaining({
                 contextValue: TREE_CONTEXT.STANDING_TEAM,
-                description: '200 points | 1 solved',
+                description: '1 solved | 3.3 min',
                 label: 'Bits',
             }),
         ]);

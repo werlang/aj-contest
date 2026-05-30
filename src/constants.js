@@ -30,7 +30,6 @@ export const COMMANDS = Object.freeze({
  */
 export const TREE_CONTEXT = Object.freeze({
     CONTEST: 'autojudgeContest.contest',
-    LOGIN: 'autojudgeContest.login',
     PROBLEM: 'autojudgeContest.problem',
     STANDING_TEAM: 'autojudgeContest.standingTeam',
     SUBMISSION: 'autojudgeContest.submission',

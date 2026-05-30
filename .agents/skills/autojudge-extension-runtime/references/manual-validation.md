@@ -24,10 +24,10 @@ Use this checklist when a contest-extension runtime change cannot be fully prove
 
 1. Confirm problem nodes remain collapsible and submission nodes only appear beneath their owning problem.
 2. Confirm problem actions stay attached to problem items and submission actions stay attached to submission items.
-3. Run `Open Problem` on a problem item and confirm it opens the clicked problem in a scratch Markdown preview.
+3. Run `Open Problem` on a problem item and confirm it writes a generated preview under `.autojudge-contest/problem-previews` and opens the clicked problem in Markdown preview.
 4. Run `Submit Active File` from a problem item with a saved supported source file open and confirm the submission succeeds, both sidebar views refresh promptly, and the new submission appears under the owning problem newest-first.
 5. Run `Export Public Cases` on a problem item and confirm the extension writes the selected problem's public `.in` and `.out` files through the maintained testcase-workspace flow.
-6. Run `Open Submission Result` on a submission item and confirm the `AutoJudge Contest` output channel is cleared and repopulated with the full clicked submission payload.
+6. Run `Open Submission Result` on a submission item and confirm the `AutoJudge Contest` output channel is cleared and repopulated with the formatted clicked submission details.
 7. If a future task changes one of these command contracts, update only the affected check while keeping the auth, ordering, and stale-session checks above.
 
 ## Manifest Coupling Checks

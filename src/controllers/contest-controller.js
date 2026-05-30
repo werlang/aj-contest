@@ -30,13 +30,12 @@ const TEAM_PANEL_REFRESH_INTERVAL_MS = TEAM_PANEL_REFRESH_RATE * 1000;
  * @param {{ clearStoredSession: Function, loginAndLoadContest: Function, pollSubmissionResult?: Function, refreshContestDetails?: Function, restoreContestSession: Function, submitSolution: Function }} options.sessionApi
  * @param {(key: string, value: string | boolean) => Promise<void> | void} options.setContext
  * @param {(message: string) => Promise<void> | void} options.showInformationMessage
- * @param {(document: unknown, options?: object) => Promise<void> | void} options.showTextDocument
  * @param {(message: string) => Promise<void> | void} options.showErrorMessage
  * @param {<T>(title: string, task: () => Promise<T>) => Promise<T>} [options.withProgressNotification]
- * @param {{ createTestCases: Function, exportPublicCases: Function, readActiveSourceFile: Function }} options.submissionWorkspace
+ * @param {{ exportPublicCases: Function, readActiveSourceFile: Function }} options.submissionWorkspace
  * @param {{ setSnapshot: (snapshot: object | null) => void }} options.teamsStandingsProvider
  * @param {{ setSnapshot: (snapshot: object | null) => void }} options.treeProvider
- * @returns {{ createTestCases: (problem?: object | undefined | null) => Promise<object | null>, dispose: () => void, exportPublicCases: (problem?: object | undefined | null) => Promise<object | null>, loginTeam: () => Promise<object | null>, logoutTeam: () => Promise<null>, openProblem: (problem: object | undefined | null) => Promise<unknown>, openSubmission: (submission: object | undefined | null) => Promise<object | null>, openTeamStanding: (team: object | undefined | null) => Promise<object | null>, refreshTree: () => Promise<object | null>, submitActiveFile: (problem?: object | undefined | null) => Promise<object | null> }}
+ * @returns {{ dispose: () => void, exportPublicCases: (problem?: object | undefined | null) => Promise<object | null>, loginTeam: () => Promise<object | null>, logoutTeam: () => Promise<null>, openProblem: (problem: object | undefined | null) => Promise<unknown>, openSubmission: (submission: object | undefined | null) => Promise<object | null>, openTeamStanding: (team: object | undefined | null) => Promise<object | null>, refreshTree: () => Promise<object | null>, submitActiveFile: (problem?: object | undefined | null) => Promise<object | null> }}
  */
 export function createContestController({
     context,
@@ -49,7 +48,6 @@ export function createContestController({
     sessionApi,
     setContext,
     showInformationMessage,
-    showTextDocument,
     showErrorMessage,
     withProgressNotification = async (_title, task) => await task(),
     submissionWorkspace,

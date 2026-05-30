@@ -18,7 +18,7 @@ Use this skill when a task changes how the contest extension authenticates a tea
 
 - Keep activation thin in `src/extension.js`; it should assemble the output channel, views, and disposables, not own contest business logic.
 - Keep command registration and VS Code prompt glue in `src/commands/contest-commands.js`; move multi-step contest behavior into the controller or focused helpers instead of growing anonymous command bodies.
-- Keep authenticated orchestration in `src/controllers/contest-controller.js`, HTTP contract details in `src/services/contest-api.js`, persisted-session rules in `src/services/contest-session.js` and `src/services/session-store.js`, contest-tree shaping in `src/providers/contest-tree-provider.js`, standings rendering in `src/providers/teams-standings-provider.js`, and formatting-only helpers in `src/presentation/contest-presentation.js` plus `src/utils/`.
+- Keep authenticated orchestration in `src/controllers/contest-controller.js`, HTTP contract details in `src/services/contest-api.js`, persisted-session rules in `src/services/contest-session.js` and `src/services/session-store.js`, contest-tree shaping in `src/providers/contest-tree-provider.js`, standings rendering in `src/providers/teams-tree-provider.js`, and formatting-only helpers in `src/presentation/contest-presentation.js` plus `src/utils/`.
 - Preserve clear object ownership. Prefer a small class or helper only when it owns long-lived state, repeated transformation logic, or a stable extension boundary; avoid scattering one-off helpers that only rename a few lines.
 - When adding a new explorer behavior, keep the tree item model, the command handler, and the controller transition readable as separate responsibilities.
 - Reuse `normalizeBaseUrl()` from `src/services/contest-api.js` instead of rebuilding base-path logic in commands, controllers, or tests.
@@ -26,7 +26,7 @@ Use this skill when a task changes how the contest extension authenticates a tea
 
 ## Runtime Contract
 
-- Preserve the current command surface unless the task explicitly changes the manifest: `autojudgeContest.loginTeam`, `autojudgeContest.logoutTeam`, `autojudgeContest.refreshTree`, `autojudgeContest.openProblem`, `autojudgeContest.submitActiveFile`, `autojudgeContest.exportPublicCases`, `autojudgeContest.createTestCases`, `autojudgeContest.openSubmission`, and `autojudgeContest.openTeamStanding`.
+- Preserve the current command surface unless the task explicitly changes the manifest: `autojudgeContest.loginTeam`, `autojudgeContest.logoutTeam`, `autojudgeContest.refreshTree`, `autojudgeContest.openProblem`, `autojudgeContest.submitActiveFile`, `autojudgeContest.exportPublicCases`, `autojudgeContest.openSubmission`, and `autojudgeContest.openTeamStanding`.
 - Preserve the login flow shape unless intentionally changing it: prompt for team id or hash first, then prompt for password.
 - Successful login must continue to store the returned token in VS Code secrets and persist the team id in global state.
 - Refresh and session restore must continue to load the current team, contest details, problems, and submissions through the contest-session path instead of duplicating fetch logic elsewhere.
