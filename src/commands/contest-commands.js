@@ -79,6 +79,7 @@ export function registerContestCommands({ context, teamsStandingsProvider, treeP
         vscode.commands.registerCommand(COMMANDS.LOGIN_TEAM, () => controller.loginTeam()),
         vscode.commands.registerCommand(COMMANDS.LOGOUT_TEAM, () => controller.logoutTeam()),
         vscode.commands.registerCommand(COMMANDS.REFRESH_TREE, () => controller.refreshTree()),
+        vscode.commands.registerCommand(COMMANDS.OPEN_CONTEST_DASHBOARD, (item) => controller.openContestDashboard(item)),
         vscode.commands.registerCommand(COMMANDS.OPEN_PROBLEM, (item) => controller.openProblem(item?.problem ?? item)),
         vscode.commands.registerCommand(COMMANDS.SUBMIT_ACTIVE_FILE, (item) => controller.submitActiveFile(item?.problem ?? item)),
         vscode.commands.registerCommand(COMMANDS.EXPORT_PUBLIC_CASES, (item) => controller.exportPublicCases(item?.problem ?? item)),

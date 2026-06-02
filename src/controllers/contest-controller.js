@@ -33,8 +33,7 @@ const SUBMISSION_POLL_TIMEOUT_MS = 2 * 60 * 1000;
  * @param {{ exportPublicCases: Function, readActiveSourceFile: Function }} options.submissionWorkspace
  * @param {{ setSnapshot: (snapshot: object | null) => void }} options.teamsStandingsProvider
  * @param {{ setSnapshot: (snapshot: object | null) => void }} options.treeProvider
- * @returns {{ dispose: () => void, exportPublicCases: (problem?: object | undefined | null) => Promise<object | null>, loginTeam: () => Promise<object | null>, logoutTeam: () => Promise<null>, openProblem: (problem: object | undefined | null) => Promise<unknown>, openSubmission: (submission: object | undefined | null) => Promise<object | null>, openTeamStanding: (team: object | undefined | null) => Promise<object | null>, refreshTree: () => Promise<object | null>, submitActiveFile: (problem?: object | undefined | null) => Promise<object | null> }}
- */
+ * @returns {{ dispose: () => void, exportPublicCases: (problem?: object | undefined | null) => Promise<object | null>, loginTeam: () => Promise<object | null>, logoutTeam: () => Promise<null>, openProblem: (problem: object | undefined | null) => Promise<unknown>, openSubmission: (submission: object | undefined | null) => Promise<object | null>, openTeamStanding: (team: object | undefined | null) => Promise<object | null>, refreshTree: () => Promise<object | null>, openContestDashboard: () => Promise<object | null>, submitActiveFile: (problem?: object | undefined | null) => Promise<object | null> }}*/
 export function createContestController({
     context,
     executeCommand = async () => {},
@@ -120,7 +119,7 @@ export function createContestController({
             return;
         }
 
-        if (!currentSnapshot?.team?.contest?.id) {
+        if (!currentSnapshot?.contest?.id) {
             return;
         }
 
@@ -129,7 +128,7 @@ export function createContestController({
         try {
             const refreshedContest = await sessionApi.refreshContestDetails({
                 baseUrl: resolveBaseUrl(),
-                contest: currentSnapshot.team.contest,
+                contest: currentSnapshot.contest,
                 context,
             });
 
@@ -148,8 +147,8 @@ export function createContestController({
                 ...currentSnapshot,
                 team: {
                     ...currentSnapshot.team,
-                    contest: refreshedContest,
                 },
+                contest: refreshedContest,
             });
         }
         catch (error) {
@@ -170,7 +169,7 @@ export function createContestController({
     const syncTeamsRefreshTimer = (snapshot) => {
         clearTeamsRefreshTimer();
 
-        if (!snapshot?.team?.contest?.id || typeof sessionApi.refreshContestDetails !== 'function') {
+        if (!snapshot?.contest?.id || typeof sessionApi.refreshContestDetails !== 'function') {
             return;
         }
 
@@ -297,7 +296,7 @@ export function createContestController({
                     password: credentials.password,
                     teamId: credentials.teamId,
                 });
-                outputChannel.appendLine(`Logged in as ${snapshot.team.name} for ${snapshot.team.contest.name.trim()}.`);
+                outputChannel.appendLine(`Logged in as ${snapshot.team.name} for ${snapshot.contest.name.trim()}.`);
                 return await syncTreeState(snapshot);
             }
             catch (error) {
@@ -314,6 +313,34 @@ export function createContestController({
             outputChannel.appendLine('Logged out of AutoJudge Contest.');
             await syncTreeState(null);
             return null;
+        },
+
+        /**
+         * Open the contest dashboard in the output channel.
+         * @returns {Promise<null>}
+         */
+        async openContestDashboard(contest) {
+            const selectedContest = await requireSelection(contest, 'contest');
+            if (!selectedContest) {
+                return null;
+            }
+
+            selectedContest.endTime = new Date(new Date(selectedContest.startTime).getTime() + selectedContest.duration * 60 * 1000).toISOString();
+            selectedContest.remainingTime = formatProblemScore(new Date(selectedContest.endTime).getTime() - Date.now());
+
+            outputChannel.clear?.();
+            outputChannel.appendLine(`Contest: ${selectedContest.name.trim()}`);
+            outputChannel.appendLine(`Start Time: ${selectedContest.startTime}`);
+            outputChannel.appendLine(`End Time: ${selectedContest.endTime}`);
+            outputChannel.appendLine(`Remaining Time: ${selectedContest.remainingTime}`);
+            outputChannel.appendLine(`Duration: ${selectedContest.duration} minutes`);
+            outputChannel.appendLine(`Penalty: ${selectedContest.penaltyTime} minutes`);
+            outputChannel.appendLine(`Freeze Time: ${selectedContest.freezeTime} minutes`);
+            outputChannel.appendLine(`Frozen: ${selectedContest.frozenScoreboard ? 'Yes' : 'No'}`);
+            outputChannel.appendLine(`Problems: ${selectedContest.problems?.length ?? 0}`);
+            outputChannel.appendLine(`Teams: ${selectedContest.teams?.length ?? 0}`);
+            outputChannel.show?.(true);
+            return selectedContest;
         },
 
         /**
@@ -374,21 +401,18 @@ export function createContestController({
             }
 
             const normalizedScore = formatProblemScore(normalizeStandingScore(selectedTeam));
-            const contestProblems = currentSnapshot?.team?.contest?.problems ?? [];
+            const contestProblems = currentSnapshot?.contest?.problems ?? [];
             const solvedProblemNames = extractSolvedProblemNames(selectedTeam, contestProblems);
 
             outputChannel.clear?.();
             outputChannel.appendLine(`Team: ${selectedTeam.name?.toString().trim() || 'Unknown Team'}`);
             outputChannel.appendLine(`Score: ${normalizedScore}`);
-            outputChannel.appendLine('Solved Problems:');
+            outputChannel.appendLine(`Solved Problems: ${solvedProblemNames.length}`);
 
             if (solvedProblemNames.length) {
                 for (const problemName of solvedProblemNames) {
-                    outputChannel.appendLine(`- ${problemName}`);
+                    outputChannel.appendLine(`    ● ${problemName}`);
                 }
-            }
-            else {
-                outputChannel.appendLine('- None yet');
             }
 
             outputChannel.show?.(true);
@@ -465,7 +489,7 @@ export function createContestController({
                     context,
                 });
                 if (snapshot) {
-                    outputChannel.appendLine(`Loaded ${snapshot.team.contest.name.trim()} for ${snapshot.team.name}.`);
+                    outputChannel.appendLine(`Loaded ${snapshot.contest.name.trim()} for ${snapshot.team.name}.`);
                 }
                 return await syncTreeState(snapshot);
             }

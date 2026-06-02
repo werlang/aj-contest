@@ -86,6 +86,11 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "autojudgeContest.openContestDashboard",
+        "title": "AutoJudge Contest: Open Contest Dashboard",
+        "icon": "$(graph)"
+      },
+      {
         "command": "autojudgeContest.openProblem",
         "title": "AutoJudge Contest: Open Problem",
         "icon": "$(book)"

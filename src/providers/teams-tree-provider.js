@@ -57,7 +57,7 @@ export class TeamsStandingsProvider {
             return [];
         }
 
-        const standingsTeams = resolveStandingTeams(this.snapshot.team?.contest);
+        const standingsTeams = resolveStandingTeams(this.snapshot?.contest);
         if (!standingsTeams.length) {
             return [buildEmptyStandingsItem()];
         }

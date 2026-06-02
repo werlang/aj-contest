@@ -176,8 +176,8 @@ export async function loadContestSnapshot({ baseUrl, token }) {
         submissions: submissionResponse.submissions,
         team: {
             ...team,
-            contest: mergeContestSnapshot(team.contest, contestResponse.contest),
         },
+        contest: mergeContestSnapshot(team.contest, contestResponse.contest),
         token,
     };
 }

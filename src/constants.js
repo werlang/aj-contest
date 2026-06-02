@@ -22,6 +22,7 @@ export const COMMANDS = Object.freeze({
     OPEN_SUBMISSION: 'autojudgeContest.openSubmission',
     OPEN_TEAM_STANDING: 'autojudgeContest.openTeamStanding',
     REFRESH_TREE: 'autojudgeContest.refreshTree',
+    OPEN_CONTEST_DASHBOARD: 'autojudgeContest.openContestDashboard',
     SUBMIT_ACTIVE_FILE: 'autojudgeContest.submitActiveFile',
 });
 
