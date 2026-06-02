@@ -7,7 +7,6 @@ All notable changes to this repository are documented in this file.
 ### Added
 
 - Added the `Teams Standings` sidebar view with score-sorted teams, a fixed 15-second refresh cycle, and output-channel team detail rendering.
-- Added contest-header countdown rendering that keeps updating offline after the contest snapshot is fetched.
 - Added automatic submission-result polling after a successful submit, backed by the `autojudgeContest.pollIntervalMs` setting.
 - Added clearer output-channel rendering for submission details.
 
@@ -19,3 +18,7 @@ All notable changes to this repository are documented in this file.
 - Removed the stale `autojudgeContest.createTestCases` command contribution so the manifest matches the runtime command surface.
 - Reorganized `src/` into command, controller, presentation, provider, service, utility, and workspace folders, removing the unused legacy `src/runner/` files.
 - Rewrote the README, AGENTS context, and runtime skill guidance to match the current commands, views, settings, and file layout.
+
+### Removed
+
+- Removed the contest-header countdown timer and its continuous tree-provider self-refresh.

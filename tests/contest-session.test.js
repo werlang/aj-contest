@@ -167,7 +167,6 @@ describe('contest session flow', () => {
                 hash: 'teamhash9',
                 name: 'Bits',
                 contest: {
-                    countdownTargetMs: new Date('2026-05-29T12:01:30.000Z').getTime(),
                     description: 'Regional ICPC warm-up',
                     duration: 180,
                     id: 4,

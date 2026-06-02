@@ -90,63 +90,12 @@ export function renderSubmissionDetails(submission) {
 }
 
 /**
- * Build the explorer contest header description with the current team and, when
- * available, a locally refreshed remaining-time label.
+ * Build the explorer contest header description with the current team.
  * @param {{ name?: string } | undefined | null} team
- * @param {number | null} countdownTargetMs
- * @param {number} [now]
  * @returns {string}
  */
-export function buildContestHeaderDescription(team, countdownTargetMs, now = Date.now()) {
-    const teamName = team?.name?.toString().trim() || 'Unknown Team';
-    const countdownLabel = formatContestCountdown(countdownTargetMs, now);
-    return countdownLabel ? `${teamName} | ${countdownLabel}` : teamName;
-}
-
-/**
- * Resolve the contest countdown target from the current contest snapshot.
- *
- * The fetched AutoJudge snapshot shape exercised in this repository only proves
- * `team.contest.id` and `team.contest.name`. Keep the presentation layer honest
- * by waiting for the session/controller path to provide an explicit countdown
- * target instead of guessing from unsupported field names.
- * @param {object | undefined | null} contest
- * @returns {number | null}
- */
-export function resolveContestCountdownTarget(contest) {
-    if (!contest || typeof contest !== 'object') {
-        return null;
-    }
-
-    return parseCountdownTargetMilliseconds(contest.countdownTargetMs);
-}
-
-/**
- * Format the remaining contest time as a compact countdown label.
- * @param {number | null} countdownTargetMs
- * @param {number} [now]
- * @returns {string}
- */
-export function formatContestCountdown(countdownTargetMs, now = Date.now()) {
-    if (countdownTargetMs == null) {
-        return '';
-    }
-
-    const remainingMs = Math.max(countdownTargetMs - now, 0);
-    if (remainingMs === 0) {
-        return '00:00 left';
-    }
-
-    const remainingSeconds = Math.ceil(remainingMs / 1000);
-    const hours = Math.floor(remainingSeconds / 3600);
-    const minutes = Math.floor((remainingSeconds % 3600) / 60);
-    const seconds = remainingSeconds % 60;
-
-    if (hours > 0) {
-        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} left`;
-    }
-
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} left`;
+export function buildContestHeaderDescription(team) {
+    return team?.name?.toString().trim() || 'Unknown Team';
 }
 
 /**
@@ -207,27 +156,4 @@ function buildSubmissionProblemLabel(problem) {
     }
 
     return id ? `Problem${id}` : '';
-}
-
-/**
- * Parse an explicit countdown target already normalized to epoch milliseconds.
- * @param {unknown} value
- * @returns {number | null}
- */
-function parseCountdownTargetMilliseconds(value) {
-    if (value == null) {
-        return null;
-    }
-
-    if (typeof value === 'number') {
-        return Number.isFinite(value) ? value : null;
-    }
-
-    const normalizedValue = value.toString().trim();
-    if (!normalizedValue || !/^\d+$/.test(normalizedValue)) {
-        return null;
-    }
-
-    const parsedValue = Number(normalizedValue);
-    return Number.isFinite(parsedValue) ? parsedValue : null;
 }

@@ -183,38 +183,17 @@ export async function loadContestSnapshot({ baseUrl, token }) {
 }
 
 /**
- * Merge the summary contest fields from `GET /teams` with the richer countdown
+ * Merge the summary contest fields from `GET /teams` with the richer details
  * payload returned by `GET /contests/:id`.
  * @param {object | undefined | null} summaryContest
  * @param {object | undefined | null} detailedContest
- * @param {number} [now]
  * @returns {object}
  */
-function mergeContestSnapshot(summaryContest, detailedContest, now = Date.now()) {
+function mergeContestSnapshot(summaryContest, detailedContest) {
     return {
         ...summaryContest,
         ...detailedContest,
-        countdownTargetMs: normalizeCountdownTarget(detailedContest?.remainingTime ?? summaryContest?.remainingTime, now),
     };
-}
-
-/**
- * Convert the API's remaining-time milliseconds into a fixed local deadline.
- * @param {unknown} remainingTime
- * @param {number} now
- * @returns {number | null}
- */
-function normalizeCountdownTarget(remainingTime, now) {
-    if (remainingTime == null) {
-        return null;
-    }
-
-    const normalizedRemainingTime = Number(remainingTime);
-    if (!Number.isFinite(normalizedRemainingTime)) {
-        return null;
-    }
-
-    return now + Math.max(normalizedRemainingTime, 0);
 }
 
 /**

@@ -6,7 +6,7 @@ Browse contest problems, watch verdicts land, inspect team standings, and submit
 
 - Adds an `AutoJudge Contest` activity-bar container with two views: `Contest Explorer` and `Teams Standings`.
 - Signs in with your AutoJudge team id or hash, restores the saved session, and reloads the current contest snapshot on refresh.
-- Highlights the contest header with your team name and an offline countdown that keeps updating every second after the contest details are fetched.
+- Highlights the contest header with the contest name and your team name.
 - Keeps problem rows focused on navigation: use the book action to open the statement preview, then click submission rows directly to open a formatted result in the `AutoJudge Contest` output channel.
 - Submits the active saved source file from a problem row and polls automatically until a final verdict arrives or the timeout path is reached.
 - Exports public testcase pairs beside the active source file.

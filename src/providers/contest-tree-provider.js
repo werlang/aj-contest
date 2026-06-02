@@ -2,20 +2,15 @@ import * as vscode from 'vscode';
 import {
     buildContestHeaderDescription,
     formatSubmissionStatus,
-    resolveContestCountdownTarget,
 } from '../presentation/contest-presentation.js';
 import { COMMANDS, TREE_CONTEXT } from '../constants.js';
 import { isPassedSubmission, isPendingSubmission } from '../utils/submission-status.js';
-
-const COUNTDOWN_REFRESH_INTERVAL_MS = 1000;
 
 /**
  * Provide the contest explorer tree for logged-in contest snapshots.
  */
 export class ContestTreeProvider {
     constructor() {
-        this.countdownTargetMs = null;
-        this.countdownTimer = null;
         this.listeners = new Set();
         this.snapshot = null;
         this.state = 'loggedOut';
@@ -56,18 +51,14 @@ export class ContestTreeProvider {
      */
     setSnapshot(snapshot) {
         this.snapshot = snapshot;
-        this.countdownTargetMs = resolveContestCountdownTarget(snapshot?.team?.contest ?? null);
         this.state = snapshot ? 'loggedIn' : 'loggedOut';
-        this.syncCountdownTimer();
         this.refresh();
     }
 
     /**
-     * Dispose the tree provider and stop any local countdown refresh interval.
+     * Dispose the tree provider.
      */
-    dispose() {
-        this.clearCountdownTimer();
-    }
+    dispose() {}
 
     /**
      * Return the currently rendered contest snapshot.
@@ -125,11 +116,11 @@ export class ContestTreeProvider {
         return [
             {
                 label: this.snapshot.team.contest.name.trim(),
-                description: buildContestHeaderDescription(this.snapshot.team, this.countdownTargetMs),
+                description: buildContestHeaderDescription(this.snapshot.team),
                 collapsibleState: 0,
                 contextValue: TREE_CONTEXT.CONTEST,
                 iconPath: new vscode.ThemeIcon('trophy', new vscode.ThemeColor('charts.blue')),
-                tooltip: buildContestHeaderTooltip(this.snapshot.team, this.countdownTargetMs),
+                tooltip: buildContestHeaderTooltip(this.snapshot.team),
             },
             ...problemItems,
         ];
@@ -142,36 +133,6 @@ export class ContestTreeProvider {
      */
     getTreeItem(element) {
         return element;
-    }
-
-    /**
-     * Start or stop the local countdown refresh based on the current snapshot.
-     */
-    syncCountdownTimer() {
-        this.clearCountdownTimer();
-
-        if (this.countdownTargetMs == null || this.countdownTargetMs <= Date.now()) {
-            return;
-        }
-
-        // Keep the countdown current without re-fetching contest data each second.
-        this.countdownTimer = setInterval(() => {
-            this.refresh();
-
-            if (this.countdownTargetMs != null && this.countdownTargetMs <= Date.now()) {
-                this.clearCountdownTimer();
-            }
-        }, COUNTDOWN_REFRESH_INTERVAL_MS);
-    }
-
-    /**
-     * Clear the local countdown refresh interval when it is no longer needed.
-     */
-    clearCountdownTimer() {
-        if (this.countdownTimer) {
-            clearInterval(this.countdownTimer);
-            this.countdownTimer = null;
-        }
     }
 }
 
@@ -195,12 +156,11 @@ function getSubmissionIcon(status) {
 /**
  * Build the richer contest-header tooltip shown in the explorer.
  * @param {{ contest?: { name?: string }, name?: string }} team
- * @param {number | null} countdownTargetMs
  * @returns {string}
  */
-function buildContestHeaderTooltip(team, countdownTargetMs) {
+function buildContestHeaderTooltip(team) {
     const tooltipLines = [team?.contest?.name?.toString().trim() || 'Contest'];
-    const description = buildContestHeaderDescription(team, countdownTargetMs);
+    const description = buildContestHeaderDescription(team);
 
     if (description) {
         tooltipLines.push(description);

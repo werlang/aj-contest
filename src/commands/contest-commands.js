@@ -72,6 +72,8 @@ export function registerContestCommands({ context, teamsStandingsProvider, treeP
         treeProvider,
     });
 
+    controller.refreshTree();
+
     return [
         controller,
         vscode.commands.registerCommand(COMMANDS.LOGIN_TEAM, () => controller.loginTeam()),

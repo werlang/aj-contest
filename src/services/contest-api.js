@@ -47,7 +47,7 @@ export async function getCurrentTeam({ baseUrl, token, signal }) {
 }
 
 /**
- * Fetch the authenticated team's contest details, including countdown fields.
+ * Fetch the authenticated team's contest details.
  * @param {{ baseUrl: string, contestId: number | string, token: string, signal?: AbortSignal }} options
  * @returns {Promise<{ contest: object }>}
  */

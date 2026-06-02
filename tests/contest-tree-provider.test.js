@@ -109,46 +109,7 @@ describe('contest tree provider', () => {
         ]);
     });
 
-    it('renders and refreshes the offline contest countdown from the normalized snapshot target', () => {
-        vi.useFakeTimers();
-        vi.setSystemTime(new Date('2026-05-28T03:58:30.000Z'));
-
-        const provider = new ContestTreeProvider();
-        const listener = vi.fn();
-        provider.onDidChangeTreeData(listener);
-
-        provider.setSnapshot({
-            problems: [],
-            submissions: [],
-            team: {
-                contest: {
-                    countdownTargetMs: new Date('2026-05-28T04:00:00.000Z').getTime(),
-                    duration: 180,
-                    id: 4,
-                    name: 'Regional Final',
-                    remainingTime: 90_000,
-                    startTime: '2026-05-28T01:00:00.000Z',
-                },
-                name: 'Bits',
-            },
-            token: 'jwt-token',
-        });
-
-        expect(provider.getChildren()[0].description).toBe('Bits | 01:30 left');
-
-        vi.advanceTimersByTime(1000);
-
-        expect(listener).toHaveBeenCalledTimes(2);
-        expect(provider.getChildren()[0].description).toBe('Bits | 01:29 left');
-
-        provider.dispose();
-        vi.useRealTimers();
-    });
-
-    it('does not start an offline contest countdown when the fetched snapshot has no countdown target', () => {
-        vi.useFakeTimers();
-        vi.setSystemTime(new Date('2026-05-28T03:58:30.000Z'));
-
+    it('sets the snapshot and renders the contest header without countdown tickers', () => {
         const provider = new ContestTreeProvider();
         const listener = vi.fn();
         provider.onDidChangeTreeData(listener);
@@ -166,14 +127,11 @@ describe('contest tree provider', () => {
             token: 'jwt-token',
         });
 
-        expect(provider.getChildren()[0].description).toBe('Bits');
-
-        vi.advanceTimersByTime(1000);
-
+        const rootChildren = provider.getChildren();
+        expect(rootChildren[0].description).toBe('Bits');
+        expect(rootChildren[0].tooltip).toBe('Regional Final\nBits');
         expect(listener).toHaveBeenCalledTimes(1);
-        expect(provider.getChildren()[0].description).toBe('Bits');
 
         provider.dispose();
-        vi.useRealTimers();
     });
 });
