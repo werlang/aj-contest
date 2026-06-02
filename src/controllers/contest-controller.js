@@ -5,6 +5,7 @@ import {
     buildProblemPreview,
     formatProblemScore,
     formatSubmissionStatus,
+    renderContestDashboard,
     renderSubmissionDetails,
 } from '../presentation/contest-presentation.js';
 import { isPendingSubmission } from '../utils/submission-status.js';
@@ -325,21 +326,10 @@ export function createContestController({
                 return null;
             }
 
-            selectedContest.endTime = new Date(new Date(selectedContest.startTime).getTime() + selectedContest.duration * 60 * 1000).toISOString();
-            selectedContest.remainingTime = formatProblemScore(new Date(selectedContest.endTime).getTime() - Date.now());
-
             outputChannel.clear?.();
-            outputChannel.appendLine(`Contest: ${selectedContest.name.trim()}`);
-            outputChannel.appendLine(`Start Time: ${selectedContest.startTime}`);
-            outputChannel.appendLine(`End Time: ${selectedContest.endTime}`);
-            outputChannel.appendLine(`Remaining Time: ${selectedContest.remainingTime}`);
-            outputChannel.appendLine(`Duration: ${selectedContest.duration} minutes`);
-            outputChannel.appendLine(`Penalty: ${selectedContest.penaltyTime} minutes`);
-            outputChannel.appendLine(`Freeze Time: ${selectedContest.freezeTime} minutes`);
-            outputChannel.appendLine(`Frozen: ${selectedContest.frozenScoreboard ? 'Yes' : 'No'}`);
-            outputChannel.appendLine(`Problems: ${selectedContest.problems?.length ?? 0}`);
-            outputChannel.appendLine(`Teams: ${selectedContest.teams?.length ?? 0}`);
+            outputChannel.appendLine(renderContestDashboard(selectedContest));
             outputChannel.show?.(true);
+
             return selectedContest;
         },
 

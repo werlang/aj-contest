@@ -109,6 +109,26 @@ export function formatProblemScore(ms) {
     return `${minutes} min`;
 }
 
+export function renderContestDashboard(contest) {
+    contest.endTime = new Date(new Date(contest.startTime).getTime() + contest.duration * 60 * 1000).toISOString();
+    contest.remainingTime = formatProblemScore(new Date(contest.endTime).getTime() - Date.now());
+
+    const lines = [
+        `# ${contest.name.trim()}`,
+        `Start Time: ${contest.startTime}`,
+        `End Time: ${contest.endTime}`,
+        `Remaining Time: ${contest.remainingTime}`,
+        `Duration: ${contest.duration} minutes`,
+        `Penalty: ${contest.penaltyTime} minutes`,
+        `Freeze Time: ${contest.freezeTime} minutes`,
+        `Frozen: ${contest.frozenScoreboard ? 'Yes' : 'No'}`,
+        `Problems: ${contest.problems?.length ?? 0}`,
+        `Teams: ${contest.teams?.length ?? 0}`,
+    ];
+
+    return lines.join('\n');
+}
+
 /**
  * Return the best available problem title while guarding against blank API data.
  * @param {object} problem
