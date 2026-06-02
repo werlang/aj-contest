@@ -10,11 +10,9 @@ import {
 import { isPendingSubmission } from '../utils/submission-status.js';
 import { extractSolvedProblemNames, normalizeStandingScore } from '../utils/standings.js';
 import { extractPublicCases } from '../workspace/contest-public-cases.js';
-import config from '../utils/config.js';
+import { TEAM_PANEL_REFRESH_INTERVAL_MS } from '../utils/config.js';
 
 const SUBMISSION_POLL_TIMEOUT_MS = 2 * 60 * 1000;
-const TEAM_PANEL_REFRESH_RATE = 15;
-const TEAM_PANEL_REFRESH_INTERVAL_MS = TEAM_PANEL_REFRESH_RATE * 1000;
 
 /**
  * Create the orchestrator that bridges VS Code command handlers to the contest
