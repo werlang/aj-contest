@@ -69,6 +69,23 @@ export class ContestTreeProvider {
     }
 
     /**
+     * Create a simple colored circle icon as a data URI for problem nodes.
+     * @param {*} hexColor
+     * @returns 
+     */
+    createColoredCircleIcon(hexColor) {
+        const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">
+                <circle cx="8" cy="8" r="3" fill="${hexColor || '#00000000'}" />
+            </svg>
+        `;
+
+        return vscode.Uri.parse(
+            `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
+        );
+    }
+
+    /**
      * Return the visible children for a given tree node.
      * @param {Record<string, unknown> | undefined} element
      * @returns {Array<Record<string, unknown>>}
@@ -108,19 +125,26 @@ export class ContestTreeProvider {
                     description: `${submissions.length} submission${submissions.length === 1 ? '' : 's'}`,
                     collapsibleState: submissions.length ? 1 : 0,
                     contextValue: TREE_CONTEXT.PROBLEM,
+                    iconPath: this.createColoredCircleIcon(problem.color),
                     children: submissions,
                     problem,
                 };
             });
 
         return [
+            // The contest header is a root-level node that surfaces the team and contest name.
             {
-                label: this.snapshot.team.contest.name.trim(),
+                label: this.snapshot.contest.name.trim().toUpperCase(),
                 description: buildContestHeaderDescription(this.snapshot.team),
                 collapsibleState: 0,
                 contextValue: TREE_CONTEXT.CONTEST,
-                iconPath: new vscode.ThemeIcon('trophy', new vscode.ThemeColor('charts.blue')),
-                tooltip: buildContestHeaderTooltip(this.snapshot.team),
+                iconPath: new vscode.ThemeIcon('mortar-board', new vscode.ThemeColor('charts.blue')),
+                tooltip: buildContestHeaderTooltip(this.snapshot.team, this.snapshot.contest),
+                command: {
+                    command: COMMANDS.OPEN_CONTEST_DASHBOARD,
+                    title: 'Open Contest Dashboard',
+                    arguments: [this.snapshot.contest],
+                },
             },
             ...problemItems,
         ];
@@ -147,7 +171,7 @@ function getSubmissionIcon(status) {
     }
 
     if (isPendingSubmission(status)) {
-        return new vscode.ThemeIcon('history', new vscode.ThemeColor('charts.yellow'));
+        return new vscode.ThemeIcon('clockface', new vscode.ThemeColor('charts.yellow'));
     }
 
     return new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
@@ -156,10 +180,11 @@ function getSubmissionIcon(status) {
 /**
  * Build the richer contest-header tooltip shown in the explorer.
  * @param {{ contest?: { name?: string }, name?: string }} team
+ * @param {{ name?: string }} contest
  * @returns {string}
  */
-function buildContestHeaderTooltip(team) {
-    const tooltipLines = [team?.contest?.name?.toString().trim() || 'Contest'];
+function buildContestHeaderTooltip(team, contest) {
+    const tooltipLines = [contest?.name?.toString().trim() || 'Contest'];
     const description = buildContestHeaderDescription(team);
 
     if (description) {
