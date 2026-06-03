@@ -31,6 +31,24 @@ describe('teams standings provider', () => {
                 },
                 name: 'Bits',
             },
+            contest: {
+                id: 4,
+                name: 'Regional Final',
+                teams: [
+                    {
+                        id: 9,
+                        name: 'Bits',
+                        score: 200000,
+                        solvedProblems: [1],
+                    },
+                    {
+                        id: 12,
+                        name: 'Array Ninjas',
+                        score: 350000,
+                        solvedProblems: [1, 2],
+                    },
+                ],
+            },
             token: 'jwt-token',
         });
 
@@ -63,6 +81,10 @@ describe('teams standings provider', () => {
                     name: 'Regional Final',
                 },
                 name: 'Bits',
+            },
+            contest: {
+                id: 4,
+                name: 'Regional Final',
             },
             token: 'jwt-token',
         });

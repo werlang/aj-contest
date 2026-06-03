@@ -168,32 +168,38 @@ describe('contest session flow', () => {
                 name: 'Bits',
                 contest: {
                     description: 'Regional ICPC warm-up',
-                    duration: 180,
                     id: 4,
-                    name: 'Regional Final',
                     logo: 'regional-final.webp',
-                    remainingTime: 90_000,
-                    startTime: '2026-05-29T09:00:00.000Z',
-                    teams: [
-                        {
-                            id: 9,
-                            name: 'Bits',
-                            score: 200,
-                            problems: [
-                                { id: 1, order: 1, solved: true, title: 'A + B' },
-                            ],
-                        },
-                        {
-                            id: 12,
-                            name: 'Array Ninjas',
-                            score: 350,
-                            problems: [
-                                { id: 1, order: 1, solved: true, title: 'A + B' },
-                                { id: 2, order: 2, solved: true, title: 'Binary Search' },
-                            ],
-                        },
-                    ],
+                    name: 'Regional Final',
                 },
+            },
+            contest: {
+                description: 'Regional ICPC warm-up',
+                duration: 180,
+                id: 4,
+                name: 'Regional Final',
+                logo: 'regional-final.webp',
+                remainingTime: 90_000,
+                startTime: '2026-05-29T09:00:00.000Z',
+                teams: [
+                    {
+                        id: 9,
+                        name: 'Bits',
+                        score: 200,
+                        problems: [
+                            { id: 1, order: 1, solved: true, title: 'A + B' },
+                        ],
+                    },
+                    {
+                        id: 12,
+                        name: 'Array Ninjas',
+                        score: 350,
+                        problems: [
+                            { id: 1, order: 1, solved: true, title: 'A + B' },
+                            { id: 2, order: 2, solved: true, title: 'Binary Search' },
+                        ],
+                    },
+                ],
             },
             token: 'team-jwt-token',
         });

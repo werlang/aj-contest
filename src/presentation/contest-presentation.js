@@ -1,4 +1,6 @@
-import { isPassedSubmission } from '../utils/submission-status.js';
+import { isPassedSubmission, isPendingSubmission } from '../utils/submission-status.js';
+import { extractSolvedProblemNames, normalizeStandingScore, resolveStandingTeams } from '../utils/standings.js';
+
 
 /**
  * Build the markdown preview shown when a contest problem is opened from the
@@ -48,45 +50,70 @@ export function formatSubmissionStatus(status) {
  * @returns {string}
  */
 export function renderSubmissionDetails(submission) {
+    const statusEmoji = getStatusEmoji(submission.status);
+    const statusText = formatSubmissionStatus(submission.status);
+
     const lines = [
-        `Submission #${submission.id ?? 'Unknown'}`,
-        `Status: ${formatSubmissionStatus(submission.status)}`,
+        `# 📝 Submission #${submission.id ?? 'Unknown'}`,
+        '',
+        `| **Status** | ${statusEmoji} **${statusText}** |`,
+        `| :--- | :--- |`,
     ];
 
     const problemLabel = buildSubmissionProblemLabel(submission?.problem);
     if (problemLabel) {
-        lines.push(`Problem: ${problemLabel}`);
+        lines.push(`| **🧩 Problem** | ${problemLabel} |`);
     }
 
-    appendSubmissionField(lines, 'Submitted', submission?.submittedAt);
+    if (submission?.submittedAt) {
+        lines.push(`| **⏰ Submitted At** | \`${submission.submittedAt}\` |`);
+    }
 
     let scoreLabel = 'Time';
     if (!isPassedSubmission(submission?.status)) {
         scoreLabel = 'Penalty';
     }
-    appendSubmissionField(lines, scoreLabel, formatProblemScore(submission?.score));
-    
+    if (submission?.score != null) {
+        lines.push(`| **⏱️ ${scoreLabel}** | ${formatProblemScore(submission.score)} |`);
+    }
+
     if (submission?.hint) {
         const { message, expected, received } = submission.hint;
         if (message) {
-            const hintMessage = message?.toString().split('\n').map(line => line.trim()).filter(Boolean) || [];
-            if (hintMessage.length) {
-                lines.push('', 'Hint', ...hintMessage);
+            lines.push('', '---', '', '### 💡 Hint');
+            const hintMessage = message?.toString().trim();
+            if (hintMessage) {
+                lines.push('', '```', hintMessage.replace(/\n/g, '\n'), '```');
             }
         }
+
         if (expected != null || received != null) {
-            lines.push('');
+            lines.push('', '### 🔎 Expected vs Received');
             if (expected != null) {
-                lines.push(`Expected:`, expected);
+                lines.push('', '**Expected Output:**', '```', expected.toString().trim(), '```');
             }
             if (received != null) {
-                lines.push(`Received:`, received);
+                lines.push('', '**Received Output:**', '```', received.toString().trim(), '```');
             }
         }
     }
 
-    // lines.push('', 'Payload', JSON.stringify(submission, null, 2));
     return lines.join('\n');
+}
+
+/**
+ * Return status emoji based on status value.
+ * @param {string | undefined | null} status
+ * @returns {string}
+ */
+function getStatusEmoji(status) {
+    if (isPassedSubmission(status)) {
+        return '🟢';
+    }
+    if (isPendingSubmission(status)) {
+        return '🟡';
+    }
+    return '🔴';
 }
 
 /**
@@ -110,21 +137,69 @@ export function formatProblemScore(ms) {
 }
 
 export function renderContestDashboard(contest) {
-    contest.endTime = new Date(new Date(contest.startTime).getTime() + contest.duration * 60 * 1000).toISOString();
-    contest.remainingTime = formatProblemScore(new Date(contest.endTime).getTime() - Date.now());
+    const endTime = new Date(new Date(contest.startTime).getTime() + contest.duration * 60 * 1000).toISOString();
+    const remainingMs = new Date(endTime).getTime() - Date.now();
+    const remainingTime = remainingMs > 0 ? formatProblemScore(remainingMs) : 'Ended';
 
     const lines = [
-        `# ${contest.name.trim()}`,
-        `Start Time: ${contest.startTime}`,
-        `End Time: ${contest.endTime}`,
-        `Remaining Time: ${contest.remainingTime}`,
-        `Duration: ${contest.duration} minutes`,
-        `Penalty: ${contest.penaltyTime} minutes`,
-        `Freeze Time: ${contest.freezeTime} minutes`,
-        `Frozen: ${contest.frozenScoreboard ? 'Yes' : 'No'}`,
-        `Problems: ${contest.problems?.length ?? 0}`,
-        `Teams: ${contest.teams?.length ?? 0}`,
+        `# 🏆 Contest Dashboard: ${contest.name.trim()}`,
+        '',
+        `> [!NOTE]`,
+        `> Contest details and status overview.`,
+        '',
+        `| Property | Value |`,
+        `| :--- | :--- |`,
+        `| **📅 Start Time** | \`${contest.startTime}\` |`,
+        `| **🏁 End Time** | \`${endTime}\` |`,
+        `| **⏳ Remaining Time** | **${remainingTime}** |`,
+        `| **⏱️ Duration** | ${contest.duration} minutes |`,
+        `| **⚠️ Penalty Time** | ${contest.penaltyTime} minutes |`,
+        `| **❄️ Freeze Time** | ${contest.freezeTime} minutes |`,
+        `| **🥶 Frozen Scoreboard** | ${contest.frozenScoreboard ? 'Yes ❄️' : 'No'} |`,
+        `| **📚 Problems Count** | ${contest.problems?.length ?? 0} |`,
+        `| **👥 Teams Count** | ${contest.teams?.length ?? 0} |`,
     ];
+
+    return lines.join('\n');
+}
+
+/**
+ * Render details of a team's standing and solved problems in Markdown.
+ * @param {object} team
+ * @param {object | null} currentSnapshot
+ * @returns {string}
+ */
+export function renderTeamStandingDetails(team, currentSnapshot) {
+    const sortedTeams = currentSnapshot?.contest ? resolveStandingTeams(currentSnapshot.contest) : [];
+    const teamIndex = sortedTeams.findIndex(t => t.id === team.id);
+    const rank = teamIndex !== -1 ? teamIndex + 1 : 'Unknown';
+
+    const normalizedScore = formatProblemScore(normalizeStandingScore(team));
+    const contestProblems = currentSnapshot?.contest?.problems ?? [];
+    const solvedProblemNames = extractSolvedProblemNames(team, contestProblems);
+
+    const lines = [
+        `# 👥 Team Standing: ${team.name}`,
+        '',
+        `| Metric | Value |`,
+        `| :--- | :--- |`,
+        `| **🏆 Rank** | **#${rank}** |`,
+        `| **⏱️ Time** | \`${normalizedScore}\` |`,
+        `| **✅ Solved Problems** | ${solvedProblemNames.length} / ${contestProblems.length} |`,
+        '',
+        `### 🧩 Solved Problems List`,
+        '',
+    ];
+
+    if (solvedProblemNames.length) {
+        for (const problemName of solvedProblemNames) {
+            lines.push(`> - ${problemName} `);
+            lines.push(`> - ${problemName} `);
+            lines.push(`> - ${problemName} `);
+        }
+    } else {
+        lines.push('*This team has not solved any problems yet.*');
+    }
 
     return lines.join('\n');
 }

@@ -12,6 +12,12 @@ vi.mock('vscode', () => ({
             this.color = color;
         }
     },
+    Uri: {
+        parse: (value) => ({
+            toString: () => value,
+            fsPath: value,
+        }),
+    },
 }), { virtual: true });
 
 import { ContestTreeProvider } from '../src/providers/contest-tree-provider.js';
@@ -53,6 +59,10 @@ describe('contest tree provider', () => {
                 },
                 name: 'Bits',
             },
+            contest: {
+                id: 4,
+                name: 'Regional Final',
+            },
             token: 'jwt-token',
         });
 
@@ -62,9 +72,9 @@ describe('contest tree provider', () => {
             expect.objectContaining({
                 description: 'Bits',
                 iconPath: expect.objectContaining({
-                    id: 'trophy',
+                    id: 'mortar-board',
                 }),
-                label: 'Regional Final',
+                label: 'REGIONAL FINAL',
             }),
             expect.objectContaining({
                 contextValue: TREE_CONTEXT.PROBLEM,
@@ -123,6 +133,10 @@ describe('contest tree provider', () => {
                     name: 'Regional Final',
                 },
                 name: 'Bits',
+            },
+            contest: {
+                id: 4,
+                name: 'Regional Final',
             },
             token: 'jwt-token',
         });

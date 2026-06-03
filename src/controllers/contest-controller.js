@@ -7,6 +7,7 @@ import {
     formatSubmissionStatus,
     renderContestDashboard,
     renderSubmissionDetails,
+    renderTeamStandingDetails,
 } from '../presentation/contest-presentation.js';
 import { isPendingSubmission } from '../utils/submission-status.js';
 import { extractSolvedProblemNames, normalizeStandingScore } from '../utils/standings.js';
@@ -317,8 +318,8 @@ export function createContestController({
         },
 
         /**
-         * Open the contest dashboard in the output channel.
-         * @returns {Promise<null>}
+         * Open the contest dashboard in the markdown preview.
+         * @returns {Promise<object | null>}
          */
         async openContestDashboard(contest) {
             const selectedContest = await requireSelection(contest, 'contest');
@@ -326,11 +327,19 @@ export function createContestController({
                 return null;
             }
 
-            outputChannel.clear?.();
-            outputChannel.appendLine(renderContestDashboard(selectedContest));
-            outputChannel.show?.(true);
+            try {
+                const dashboardPath = await ensureContestDashboardFile(context, selectedContest);
+                const document = await openTextDocument(dashboardPath);
 
-            return selectedContest;
+                await executeCommand('markdown.showPreview', document.uri, {
+                    preview: true,
+                });
+
+                return selectedContest;
+            }
+            catch (error) {
+                return handleFailure(error);
+            }
         },
 
         /**
@@ -363,7 +372,7 @@ export function createContestController({
         },
 
         /**
-         * Print the full selected submission payload to the output channel.
+         * Open the submission details in the markdown preview.
          * @param {object | undefined | null} submission
          * @returns {Promise<object | null>}
          */
@@ -373,14 +382,23 @@ export function createContestController({
                 return null;
             }
 
-            outputChannel.clear?.();
-            outputChannel.appendLine(renderSubmissionDetails(selectedSubmission));
-            outputChannel.show?.(true);
-            return selectedSubmission;
+            try {
+                const submissionPath = await ensureSubmissionDetailFile(context, selectedSubmission);
+                const document = await openTextDocument(submissionPath);
+
+                await executeCommand('markdown.showPreview', document.uri, {
+                    preview: true,
+                });
+
+                return selectedSubmission;
+            }
+            catch (error) {
+                return handleFailure(error);
+            }
         },
 
         /**
-         * Print the selected standings entry to the output channel.
+         * Open the selected standings entry in the markdown preview.
          * @param {object | undefined | null} team
          * @returns {Promise<object | null>}
          */
@@ -390,23 +408,19 @@ export function createContestController({
                 return null;
             }
 
-            const normalizedScore = formatProblemScore(normalizeStandingScore(selectedTeam));
-            const contestProblems = currentSnapshot?.contest?.problems ?? [];
-            const solvedProblemNames = extractSolvedProblemNames(selectedTeam, contestProblems);
+            try {
+                const teamPath = await ensureTeamStandingFile(context, selectedTeam, currentSnapshot);
+                const document = await openTextDocument(teamPath);
 
-            outputChannel.clear?.();
-            outputChannel.appendLine(`Team: ${selectedTeam.name?.toString().trim() || 'Unknown Team'}`);
-            outputChannel.appendLine(`Score: ${normalizedScore}`);
-            outputChannel.appendLine(`Solved Problems: ${solvedProblemNames.length}`);
+                await executeCommand('markdown.showPreview', document.uri, {
+                    preview: true,
+                });
 
-            if (solvedProblemNames.length) {
-                for (const problemName of solvedProblemNames) {
-                    outputChannel.appendLine(`    ● ${problemName}`);
-                }
+                return selectedTeam;
             }
-
-            outputChannel.show?.(true);
-            return selectedTeam;
+            catch (error) {
+                return handleFailure(error);
+            }
         },
 
         /**
@@ -521,7 +535,7 @@ function encodeSourceCode(sourceCode) {
  * @returns {Promise<string>}
  */
 async function ensureProblemPreviewFile(context, problem) {
-    const previewDirectory = join(resolveProblemPreviewRoot(context), 'problem-previews');
+    const previewDirectory = join(resolvePreviewRoot(context), 'problem-previews');
     const previewPath = join(previewDirectory, `${toProblemArtifactName(problem)}.md`);
 
     await mkdir(previewDirectory, { recursive: true });
@@ -595,7 +609,7 @@ function formatMarkdownTableCell(value) {
  * @param {object} context
  * @returns {string}
  */
-function resolveProblemPreviewRoot(context) {
+function resolvePreviewRoot(context) {
     return context?.storageUri?.fsPath
         ?? context?.globalStorageUri?.fsPath
         ?? join(process.cwd(), '.autojudge-contest');
@@ -624,4 +638,62 @@ function toProblemArtifactName(problem) {
     }
 
     return 'problem';
+}
+
+/**
+ * Create the generated markdown dashboard file for a contest and return its path.
+ * @param {object} context
+ * @param {object} contest
+ * @returns {Promise<string>}
+ */
+async function ensureContestDashboardFile(context, contest) {
+    const previewDirectory = join(resolvePreviewRoot(context), 'contest-dashboards');
+    const previewPath = join(previewDirectory, `contest-${contest.id}.md`);
+
+    await mkdir(previewDirectory, { recursive: true });
+
+    await writeFile(previewPath, renderContestDashboard(contest), {
+        encoding: 'utf-8',
+    });
+
+    return previewPath;
+}
+
+/**
+ * Create the generated markdown submission detail file and return its path.
+ * @param {object} context
+ * @param {object} submission
+ * @returns {Promise<string>}
+ */
+async function ensureSubmissionDetailFile(context, submission) {
+    const previewDirectory = join(resolvePreviewRoot(context), 'submission-details');
+    const previewPath = join(previewDirectory, `submission-${submission.id}.md`);
+
+    await mkdir(previewDirectory, { recursive: true });
+
+    await writeFile(previewPath, renderSubmissionDetails(submission), {
+        encoding: 'utf-8',
+    });
+
+    return previewPath;
+}
+
+/**
+ * Create the generated markdown team standing file and return its path.
+ * @param {object} context
+ * @param {object} team
+ * @param {object | null} currentSnapshot
+ * @returns {Promise<string>}
+ */
+async function ensureTeamStandingFile(context, team, currentSnapshot) {
+    const previewDirectory = join(resolvePreviewRoot(context), 'team-details');
+    const previewPath = join(previewDirectory, `team-${team.id}.md`);
+
+    await mkdir(previewDirectory, { recursive: true });
+
+    await writeFile(previewPath, renderTeamStandingDetails(team, currentSnapshot), {
+        encoding: 'utf-8',
+    });
+
+    return previewPath;
 }

@@ -40,6 +40,8 @@ vi.mock('vscode', () => ({
     window: {
         createOutputChannel,
         createTreeView,
+        showErrorMessage: vi.fn(),
+        showInformationMessage: vi.fn(),
     },
     workspace: {
         getConfiguration,
@@ -92,13 +94,14 @@ describe('contest extension activation', () => {
             'autojudgeContest.loginTeam',
             'autojudgeContest.logoutTeam',
             'autojudgeContest.refreshTree',
+            'autojudgeContest.openContestDashboard',
             'autojudgeContest.openProblem',
             'autojudgeContest.submitActiveFile',
             'autojudgeContest.exportPublicCases',
             'autojudgeContest.openSubmission',
             'autojudgeContest.openTeamStanding',
         ]);
-        expect(context.subscriptions).toHaveLength(13);
+        expect(context.subscriptions).toHaveLength(14);
     });
 
     it('exports a deactivate function', () => {

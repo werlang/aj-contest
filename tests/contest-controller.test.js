@@ -27,6 +27,29 @@ async function flushPromises(turns = 10) {
 }
 
 function createSnapshot() {
+    const contest = {
+        id: 4,
+        name: 'Regional Final',
+        problems: [
+            { id: 1, order: 1, title: 'A + B' },
+            { id: 2, order: 2, title: 'Binary Search' },
+        ],
+        teams: [
+            {
+                id: 12,
+                name: 'Array Ninjas',
+                score: 350000,
+                solvedProblems: [1, 2],
+            },
+            {
+                id: 9,
+                name: 'Bits',
+                score: 200000,
+                solvedProblems: [1],
+            },
+        ],
+    };
+
     return {
         problems: [{
             id: 1,
@@ -37,30 +60,10 @@ function createSnapshot() {
         }],
         submissions: [],
         team: {
-            contest: {
-                id: 4,
-                name: 'Regional Final',
-                problems: [
-                    { id: 1, order: 1, title: 'A + B' },
-                    { id: 2, order: 2, title: 'Binary Search' },
-                ],
-                teams: [
-                    {
-                        id: 12,
-                        name: 'Array Ninjas',
-                        score: 350000,
-                        solvedProblems: [1, 2],
-                    },
-                    {
-                        id: 9,
-                        name: 'Bits',
-                        score: 200000,
-                        solvedProblems: [1],
-                    },
-                ],
-            },
+            contest,
             name: 'Bits',
         },
+        contest,
         token: 'team-jwt-token',
     };
 }
@@ -272,9 +275,57 @@ describe('contest controller', () => {
         expect(showErrorMessage).not.toHaveBeenCalled();
     });
 
-    it('prints formatted submission details to the output channel when a submission is opened', async () => {
+    it('opens a contest dashboard preview from the contest item', async () => {
+        const document = { uri: 'file:///workspace/.autojudge-state/contest-dashboards/contest-4.md' };
+        openTextDocument.mockResolvedValue(document);
+
         const controller = createContestController({
             context,
+            executeCommand,
+            openTextDocument,
+            outputChannel,
+            promptTeamCredentials,
+            resolvePollIntervalMs,
+            resolveBaseUrl,
+            sessionApi,
+            setContext,
+            showInformationMessage,
+            showTextDocument,
+            showErrorMessage,
+            submissionWorkspace,
+            teamsStandingsProvider,
+            treeProvider,
+        });
+
+        const contest = {
+            id: 4,
+            name: 'Regional Final',
+            duration: 180,
+            startTime: '2026-05-28T03:00:00.000Z',
+        };
+
+        const result = await controller.openContestDashboard(contest);
+
+        expect(fsState.mkdir).toHaveBeenCalledWith('/workspace/.autojudge-state/contest-dashboards', {
+            recursive: true,
+        });
+        expect(fsState.writeFile).toHaveBeenCalledWith(
+            '/workspace/.autojudge-state/contest-dashboards/contest-4.md',
+            expect.stringContaining('# 🏆 Contest Dashboard: Regional Final'),
+            { encoding: 'utf-8' }
+        );
+        expect(openTextDocument).toHaveBeenCalledWith('/workspace/.autojudge-state/contest-dashboards/contest-4.md');
+        expect(executeCommand).toHaveBeenCalledWith('markdown.showPreview', document.uri, expect.any(Object));
+        expect(result).toEqual(contest);
+    });
+
+    it('opens a submission details preview from the clicked submission item', async () => {
+        const document = { uri: 'file:///workspace/.autojudge-state/submission-details/submission-12.md' };
+        openTextDocument.mockResolvedValue(document);
+
+        const controller = createContestController({
+            context,
+            executeCommand,
             openTextDocument,
             outputChannel,
             promptTeamCredentials,
@@ -299,24 +350,30 @@ describe('contest controller', () => {
             submittedAt: '2026-05-28T03:10:00.000Z',
         };
 
-        await controller.openSubmission(submission);
+        const result = await controller.openSubmission(submission);
 
-        expect(outputChannel.clear).toHaveBeenCalledTimes(1);
-        expect(outputChannel.appendLine).toHaveBeenCalledTimes(1);
-        expect(outputChannel.appendLine.mock.calls[0][0]).toContain('Submission #12');
-        expect(outputChannel.appendLine.mock.calls[0][0]).toContain('Status: Accepted');
-        expect(outputChannel.appendLine.mock.calls[0][0]).toContain('Problem: A + B (#1)');
-        expect(outputChannel.appendLine.mock.calls[0][0]).toContain('Time: 1.5 min');
-        expect(outputChannel.show).toHaveBeenCalledWith(true);
-        expect(showErrorMessage).not.toHaveBeenCalled();
+        expect(fsState.mkdir).toHaveBeenCalledWith('/workspace/.autojudge-state/submission-details', {
+            recursive: true,
+        });
+        expect(fsState.writeFile).toHaveBeenCalledWith(
+            '/workspace/.autojudge-state/submission-details/submission-12.md',
+            expect.stringContaining('# 📝 Submission #12'),
+            { encoding: 'utf-8' }
+        );
+        expect(openTextDocument).toHaveBeenCalledWith('/workspace/.autojudge-state/submission-details/submission-12.md');
+        expect(executeCommand).toHaveBeenCalledWith('markdown.showPreview', document.uri, expect.any(Object));
+        expect(result).toEqual(submission);
     });
 
-    it('prints a clicked standings team to the output channel', async () => {
+    it('opens a team standing preview from the clicked standing item', async () => {
         const snapshot = createSnapshot();
         treeProvider.getSnapshot.mockReturnValue(snapshot);
+        const document = { uri: 'file:///workspace/.autojudge-state/team-details/team-12.md' };
+        openTextDocument.mockResolvedValue(document);
 
         const controller = createContestController({
             context,
+            executeCommand,
             openTextDocument,
             outputChannel,
             promptTeamCredentials,
@@ -333,16 +390,20 @@ describe('contest controller', () => {
             treeProvider,
         });
 
-        const result = await controller.openTeamStanding(snapshot.team.contest.teams[0]);
+        const team = snapshot.team.contest.teams[0];
+        const result = await controller.openTeamStanding(team);
 
-        expect(outputChannel.clear).toHaveBeenCalledTimes(1);
-        expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Team: Array Ninjas'));
-    expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Score: 5.8 min'));
-        expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('Solved Problems:'));
-        expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('- A + B'));
-        expect(outputChannel.appendLine).toHaveBeenCalledWith(expect.stringContaining('- Binary Search'));
-        expect(outputChannel.show).toHaveBeenCalledWith(true);
-        expect(result).toEqual(snapshot.team.contest.teams[0]);
+        expect(fsState.mkdir).toHaveBeenCalledWith('/workspace/.autojudge-state/team-details', {
+            recursive: true,
+        });
+        expect(fsState.writeFile).toHaveBeenCalledWith(
+            '/workspace/.autojudge-state/team-details/team-12.md',
+            expect.stringContaining('# 👥 Team Standing: Array Ninjas'),
+            { encoding: 'utf-8' }
+        );
+        expect(openTextDocument).toHaveBeenCalledWith('/workspace/.autojudge-state/team-details/team-12.md');
+        expect(executeCommand).toHaveBeenCalledWith('markdown.showPreview', document.uri, expect.any(Object));
+        expect(result).toEqual(team);
     });
 
     it('submits the active file for the selected problem and refreshes the in-memory snapshot', async () => {
@@ -725,29 +786,30 @@ describe('contest controller', () => {
         vi.useFakeTimers();
 
         const snapshot = createSnapshot();
+        const refreshedContest = {
+            ...snapshot.contest,
+            teams: [
+                {
+                    id: 12,
+                    name: 'Array Ninjas',
+                    score: 360,
+                    problems: [
+                        { id: 1, order: 1, solved: true, title: 'A + B' },
+                        { id: 2, order: 2, solved: true, title: 'Binary Search' },
+                    ],
+                },
+            ],
+        };
         const refreshedSnapshot = {
             ...snapshot,
             team: {
                 ...snapshot.team,
-                contest: {
-                    ...snapshot.team.contest,
-                    teams: [
-                        {
-                            id: 12,
-                            name: 'Array Ninjas',
-                            score: 360,
-                            problems: [
-                                { id: 1, order: 1, solved: true, title: 'A + B' },
-                                { id: 2, order: 2, solved: true, title: 'Binary Search' },
-                            ],
-                        },
-                    ],
-                },
             },
+            contest: refreshedContest,
         };
         promptTeamCredentials.mockResolvedValue({ password: '123456', teamId: 'teamhash9' });
         sessionApi.loginAndLoadContest.mockResolvedValue(snapshot);
-        sessionApi.refreshContestDetails.mockResolvedValue(refreshedSnapshot.team.contest);
+        sessionApi.refreshContestDetails.mockResolvedValue(refreshedContest);
         treeProvider.getSnapshot.mockReturnValue(null);
 
         const controller = createContestController({
