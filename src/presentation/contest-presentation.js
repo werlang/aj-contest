@@ -1,4 +1,4 @@
-import { isPassedSubmission, isPendingSubmission } from '../utils/submission-status.js';
+import { isPassedSubmission, isPendingSubmission, isTimeLimitSubmission } from '../utils/submission-status.js';
 import { extractSolvedProblemNames, normalizeStandingScore, resolveStandingTeams } from '../utils/standings.js';
 
 
@@ -110,7 +110,7 @@ function getStatusEmoji(status) {
     if (isPassedSubmission(status)) {
         return '🟢';
     }
-    if (isPendingSubmission(status)) {
+    if (isPendingSubmission(status) || isTimeLimitSubmission(status)) {
         return '🟡';
     }
     return '🔴';
