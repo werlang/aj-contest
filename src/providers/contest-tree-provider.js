@@ -4,7 +4,13 @@ import {
     formatSubmissionStatus,
 } from '../presentation/contest-presentation.js';
 import { COMMANDS, TREE_CONTEXT } from '../constants.js';
-import { isPassedSubmission, isPendingSubmission } from '../utils/submission-status.js';
+import {
+    isErrorSubmission,
+    isFailedSubmission,
+    isPassedSubmission,
+    isPendingSubmission,
+    isTimeLimitSubmission
+} from '../utils/submission-status.js';
 
 /**
  * Provide the contest explorer tree for logged-in contest snapshots.
@@ -166,12 +172,25 @@ export class ContestTreeProvider {
  * @returns {import('vscode').ThemeIcon}
  */
 function getSubmissionIcon(status) {
+    console.log(status);
     if (isPassedSubmission(status)) {
         return new vscode.ThemeIcon('pass-filled', new vscode.ThemeColor('testing.iconPassed'));
     }
 
-    if (isPendingSubmission(status)) {
+    if (isFailedSubmission(status)) {
+        return new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
+    }
+
+    if (isTimeLimitSubmission(status)) {
         return new vscode.ThemeIcon('clockface', new vscode.ThemeColor('charts.yellow'));
+    }
+
+    if (isPendingSubmission(status)) {
+        return new vscode.ThemeIcon('loading~spin', new vscode.ThemeColor('charts.yellow'));
+    }
+
+    if (isErrorSubmission(status)) {
+        return new vscode.ThemeIcon('warning-compact', new vscode.ThemeColor('testing.iconFailed'));
     }
 
     return new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
