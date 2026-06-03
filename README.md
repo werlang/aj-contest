@@ -1,84 +1,120 @@
 # AutoJudge Contest
 
-Browse contest problems, watch verdicts land, inspect team standings, and submit solutions to AutoJudge without leaving VS Code.
+<p align="center">
+  <img src="media/contest.gif" alt="AutoJudge Contest In action">
+</p>
 
-## Features
+Participate in active AutoJudge contests, view problem descriptions, export public testcases, submit solutions, and track live standings directly inside Visual Studio Code.
 
-- Adds an `AutoJudge Contest` activity-bar container with two views: `Contest Explorer` and `Teams Standings`.
-- Signs in with your AutoJudge team id or hash, restores the saved session, and reloads the current contest snapshot on refresh.
-- Highlights the contest header with the contest name and your team name.
-- Keeps problem rows focused on navigation: use the book action to open the statement preview, then click submission rows directly to open a formatted result in the `AutoJudge Contest` output channel.
-- Submits the active saved source file from a problem row and polls automatically until a final verdict arrives or the timeout path is reached.
-- Exports public testcase pairs beside the active source file.
-- Shows `Teams Standings` sorted by score, refreshes that panel every 15 seconds, and prints the selected team's score plus solved problems to the output channel.
-- Supports hosted or self-hosted AutoJudge API deployments through a configurable base URL.
+---
 
-## Install
+## 🚀 Overview
 
-This extension is currently packaged from this repository for local development or private distribution.
+The **AutoJudge Contest** extension allows competitive programming teams to focus on coding without context switching. It interfaces directly with the AutoJudge API from the [autojudge.io](https://autojudge.io) platform, offering a fully integrated environment to compete, submit, and succeed.
 
-To try it locally:
+> [!TIP]
+> **Perfect Pairing:** This extension works seamlessly alongside the [AutoJudge Code Runner](https://marketplace.visualstudio.com/items?itemName=autojudge.autojudge-extension) extension. Code, execute your code, and run tests cases, without ever leaving your editor.
 
-1. Open this repository in VS Code.
-2. Start the development container with `docker compose up -d --build`.
-3. Install dependencies with `docker compose exec extension npm install`.
-4. Press `F5` to launch an Extension Development Host.
+---
 
-To install a packaged build, run `docker compose exec extension npm run build`, then install the generated `.vsix` from the Extensions view.
+## ✨ Features
 
-## Quick Start
+- **🔐 Simple Team Authentication**
+  Securely log in and out using your team credentials or hash. Your session is automatically saved and restored when VS Code restarts.
 
-1. Open `AutoJudge Contest` from the activity bar.
-2. Run `AutoJudge Contest: Login Team` or use the welcome action.
-3. Enter your team id or hash, then the team password.
-4. In `Contest Explorer`, expand a problem to inspect its submissions. Use the book icon to open the problem statement, or use the inline actions to submit the active file or export public cases.
-5. Click any submission row to open its result in the `AutoJudge Contest` output channel.
-6. Open `Teams Standings` to monitor the current ranking. Click a team row to print that team's score and solved problems.
-7. Run `AutoJudge Contest: Refresh Contest Tree` to reload the current snapshot, or `AutoJudge Contest: Logout Team` to clear the saved session.
+- **📖 Interactive Problem Browser**
+  Read contest problems formatted in clean, readable Markdown directly inside VS Code. No web browser required.
 
-## Commands
+  ![Interactive Problem Browser](media/problems-tree.png)
 
-- `AutoJudge Contest: Login Team` (`autojudgeContest.loginTeam`): prompts for team credentials, authenticates against the configured API, and loads the contest snapshot.
-- `AutoJudge Contest: Logout Team` (`autojudgeContest.logoutTeam`): clears the stored team session and returns both views to the logged-out state.
-- `AutoJudge Contest: Refresh Contest Tree` (`autojudgeContest.refreshTree`): reloads the stored session and refreshes contest, problem, submission, and standings data.
-- `AutoJudge Contest: Open Problem` (`autojudgeContest.openProblem`): writes a generated Markdown preview under `.autojudge-contest/problem-previews/` and opens it in the Markdown preview.
-- `AutoJudge Contest: Submit Active File` (`autojudgeContest.submitActiveFile`): submits the active saved `.c`, `.cpp`, `.java`, `.js`, `.php`, or `.py` file for the selected contest problem and polls for the final verdict.
-- `AutoJudge Contest: Export Public Cases` (`autojudgeContest.exportPublicCases`): writes the selected problem's public testcase pairs as `.in` and `.out` files beside the active source file.
-- `AutoJudge Contest: Open Submission Result` (`autojudgeContest.openSubmission`): clears the output channel and prints the formatted submission details for the selected submission.
-- `AutoJudge Contest: Open Team Standing` (`autojudgeContest.openTeamStanding`): clears the output channel and prints the selected team's score plus solved problems.
+- **🧪 Local Test Case Generation**
+  Export public testcase input/output pairs (`.in` and `.out` files) next to your active source file for easy local debugging and validation.
 
-The `Contest Explorer` title contributes refresh plus login or logout actions depending on session state. The `Teams Standings` title contributes refresh and login or logout actions for the same state transitions. The explorer's inline problem actions cover opening the statement, submitting the active file, and exporting public cases, while submission rows and standings rows open directly when selected.
+- **⚡ Instant Submission & Poll-to-Verdict**
+  Submit your active source code file with a single click or command. Supports `.c`, `.cpp`, `.java`, `.js`, `.php`, and `.py`. The extension polls for updates and alerts you as soon as the final verdict is landed.
 
-## Configuration
+  ![Instant Submission](media/submissions-tree.png)
 
-- `autojudgeContest.baseUrl`
-  - Full AutoJudge API base URL used for team login, contest loading, submission polling, and standings refresh.
-  - Default: `https://api.autojudge.io`
-  - Base paths are preserved, so values such as `https://example.com/api` are valid.
-- `autojudgeContest.pollIntervalMs`
-  - Polling interval, in milliseconds, used while waiting for a final submission verdict.
-  - Default: `5000`
-  - Minimum: `1000`
+- **📊 Real-time Standings & Team Insights**
+  Monitor the competition with a live, score-sorted dashboard updated every 15 seconds. Click on any team to inspect their score and list of solved problems right inside the output channel.
 
-The standings refresh cadence is fixed at 15 seconds and is not currently user-configurable.
+- **🗂️ Submission History Tracking**
+  Browse a history of all submissions for each problem, nested newest-first, and view detailed submission results immediately.
 
-Example:
+![Submission View](media/submissions-view.png)
+---
 
-```json
-{
-  "autojudgeContest.baseUrl": "https://api.autojudge.io",
-  "autojudgeContest.pollIntervalMs": 5000
-}
-```
+## 🛠️ Getting Started
 
-## Troubleshooting
+Get ready for the contest in just a few quick steps:
 
-- If login fails immediately, verify that `autojudgeContest.baseUrl` points at the AutoJudge API and not only the public website.
-- If refresh returns you to the logged-out state, the stored session likely expired or became invalid and was cleared automatically.
-- Submission and public-case export both require an active saved source file with one of these extensions: `.c`, `.cpp`, `.java`, `.js`, `.php`, or `.py`.
-- Public-case export always writes beside the active source file.
-- Submission details and team-standing details are written to the `AutoJudge Contest` output channel. Keep that channel visible if you want to compare multiple results.
+1. **Open the Activity Bar:** Click the **AutoJudge Contest** icon on the VS Code sidebar.
+2. **Log In:** Click **Login Team** or use the command palette. Enter your team ID or hash followed by the password.
+3. **Explore Problems:** In the **Contest Explorer**, expand a problem. Use the book icon (📖) to view the problem description.
+4. **Generate Testcases:** Export public cases beside your active source code file.
+5. **Submit & Monitor:** Open your solution file, click the upload icon (📤), and monitor the verdict status live under the problem node or by clicking the submission row to view detailed outputs.
 
-## Release Notes
+---
 
-See [CHANGELOG.md](CHANGELOG.md) for the current release history.
+## 🌐 Custom & Self-Hosted Contests
+
+Hosting your own contest? AutoJudge is completely open source. You can self-host your own AutoJudge contest server using the public repository:
+
+👉 [**@werlang/autojudge**](https://github.com/werlang/autojudge)
+
+To connect the extension to your self-hosted server, update the `baseUrl` configuration setting to map your custom API address (defaults to `https://api.autojudge.io`).
+
+---
+
+## ⚙️ Configuration Settings
+
+Customize the extension's behavior via your VS Code Settings:
+
+| Setting Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `autojudgeContest.baseUrl` | `string` | `"https://api.autojudge.io"` | Full base API URL of the AutoJudge server. Supports subpaths (e.g. `https://example.com/api`). |
+| `autojudgeContest.pollIntervalMs` | `number` | `5000` | The polling interval (in milliseconds) used when waiting for a submission verdict. (Min: `1000`) |
+
+*Note: The standings view automatically refreshes every 15 seconds (fixed interval).*
+
+---
+
+## ⌨️ Command Palette Contributions
+
+All core functionality is easily accessible using the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`):
+
+- **AutoJudge Contest: Login Team** (`autojudgeContest.loginTeam`) — Log in to the active contest.
+- **AutoJudge Contest: Logout Team** (`autojudgeContest.logoutTeam`) — Logs out and clears active credentials.
+- **AutoJudge Contest: Refresh Contest Tree** (`autojudgeContest.refreshTree`) — Refreshes problems, submissions, and standings manually.
+- **AutoJudge Contest: Open Problem** (`autojudgeContest.openProblem`) — Opens the problem statement preview.
+- **AutoJudge Contest: Submit Active File** (`autojudgeContest.submitActiveFile`) — Submits the active code file to the contest.
+- **AutoJudge Contest: Export Public Cases** (`autojudgeContest.exportPublicCases`) — Exports public test cases to your folder.
+- **AutoJudge Contest: Open Submission Result** (`autojudgeContest.openSubmission`) — Shows full details of the selected submission.
+- **AutoJudge Contest: Open Team Standing** (`autojudgeContest.openTeamStanding`) — Displays detailed statistics for the selected team.
+
+---
+
+## 💻 Local Development & Contributions
+
+To set up a local development environment for this extension:
+
+1. Clone this repository.
+2. Spin up the development environment container:
+   ```bash
+   docker compose up -d --build
+   ```
+3. Install dependencies inside the container:
+   ```bash
+   docker compose exec extension npm install
+   ```
+4. Launch the Extension Development Host by opening the project in VS Code and pressing `F5`.
+5. Pack the extension locally:
+   ```bash
+   docker compose exec extension npm run build
+   ```
+
+---
+
+## 📄 License
+
+This extension is licensed under the [MIT License](LICENSE).

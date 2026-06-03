@@ -172,7 +172,6 @@ export class ContestTreeProvider {
  * @returns {import('vscode').ThemeIcon}
  */
 function getSubmissionIcon(status) {
-    console.log(status);
     if (isPassedSubmission(status)) {
         return new vscode.ThemeIcon('pass-filled', new vscode.ThemeColor('testing.iconPassed'));
     }

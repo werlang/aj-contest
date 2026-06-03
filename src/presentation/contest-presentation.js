@@ -142,12 +142,9 @@ export function renderContestDashboard(contest) {
     const remainingTime = remainingMs > 0 ? formatProblemScore(remainingMs) : 'Ended';
 
     const lines = [
-        `# 🏆 Contest Dashboard: ${contest.name.trim()}`,
+        `# 🏆 Contest ${contest.name.trim()}`,
         '',
-        `> [!NOTE]`,
-        `> Contest details and status overview.`,
-        '',
-        `| Property | Value |`,
+        `| **Metric** | **Value** |`,
         `| :--- | :--- |`,
         `| **📅 Start Time** | \`${contest.startTime}\` |`,
         `| **🏁 End Time** | \`${endTime}\` |`,
@@ -181,7 +178,7 @@ export function renderTeamStandingDetails(team, currentSnapshot) {
     const lines = [
         `# 👥 Team Standing: ${team.name}`,
         '',
-        `| Metric | Value |`,
+        `| **Metric** | **Value** |`,
         `| :--- | :--- |`,
         `| **🏆 Rank** | **#${rank}** |`,
         `| **⏱️ Time** | \`${normalizedScore}\` |`,
@@ -193,8 +190,6 @@ export function renderTeamStandingDetails(team, currentSnapshot) {
 
     if (solvedProblemNames.length) {
         for (const problemName of solvedProblemNames) {
-            lines.push(`> - ${problemName} `);
-            lines.push(`> - ${problemName} `);
             lines.push(`> - ${problemName} `);
         }
     } else {
